@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Playwright test artifacts
+.playwright-mcp/
+
+# Claude Code internals
+.sixth/
+
+# Dev screenshots / local resources
+resources/
+
+# Root-level piece SVGs (duplicated in frontend/public/pieces/)
+pieces/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env files (never commit secrets)
+.env
+.env.local
+.env*.local

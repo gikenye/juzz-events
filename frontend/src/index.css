@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-base: #0B0B0F;
+  --color-bg-card: #141418;
+  --color-bg-surface: #1C1C24;
+  --color-gold: #C9A227;
+  --color-gold-light: #E2C547;
+  --color-ivory: #F5F0E8;
+  --color-muted: #9A9AAF;
+  --color-border: #2A2A35;
+  --color-board-light: #F0D9B5;
+  --color-board-dark: #B58863;
+  --color-maxi: #7B4FBF;
+  --color-maxi-light: #9D72E0;
+  --color-gotham: #00B4A6;
+  --color-gotham-light: #00D4C4;
+
+  --font-display: "Cinzel", serif;
+  --font-body: "Inter", sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: #0B0B0F;
+  color: #F5F0E8;
+  font-family: "Inter", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0B0B0F; }
+::-webkit-scrollbar-thumb { background: #2A2A35; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #C9A227; }
+
+/* Chess board override — ensures crisp rendering */
+.react-chessboard-board { border-radius: 4px; overflow: hidden; }
