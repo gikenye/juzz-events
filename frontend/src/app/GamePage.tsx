@@ -9,7 +9,7 @@ import { MarketPanel } from '../components/market/MarketPanel';
 import { Chess } from 'chess.js';
 
 export function GamePage() {
-  const { fen, moveIndex, capturedPieces, isFinished, maxiPoints, gothamPoints, nextMove, resetGame } = useGameStore();
+  const { fen, moveIndex, capturedPieces, isFinished, nextMove, resetGame } = useGameStore();
   const { tickTimer, updateProbabilities, timeRemaining } = useMarketStore();
 
   // Determine whose turn it is from FEN
@@ -64,7 +64,6 @@ export function GamePage() {
             <AgentCard
               name="Agent Maxi"
               color="maxi"
-              points={maxiPoints}
               isActive={turn === 'b' && !isFinished}
               capturedPieces={capturedPieces.byMaxi}
               capturedPieceColor="white"
@@ -77,7 +76,6 @@ export function GamePage() {
             <AgentCard
               name="Agent Gotham"
               color="gotham"
-              points={gothamPoints}
               isActive={turn === 'w' && !isFinished}
               capturedPieces={capturedPieces.byGotham}
               capturedPieceColor="black"

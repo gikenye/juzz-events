@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const PIECE_UNICODE: Record<string, string> = {
   p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚',
@@ -11,7 +11,6 @@ const PIECE_VALUE: Record<string, number> = {
 interface AgentCardProps {
   name: string;
   color: 'maxi' | 'gotham';
-  points: number;
   isActive: boolean;
   capturedPieces?: string[];
   capturedPieceColor?: 'white' | 'black';
@@ -113,7 +112,7 @@ function AgentAvatar({ color, isActive }: { color: 'maxi' | 'gotham'; isActive: 
   );
 }
 
-export function AgentCard({ name, color, points, isActive, capturedPieces = [], capturedPieceColor }: AgentCardProps) {
+export function AgentCard({ name, color, isActive, capturedPieces = [], capturedPieceColor }: AgentCardProps) {
   const cfg = configs[color];
 
   const advantage = capturedPieces.reduce((sum, p) => sum + (PIECE_VALUE[p] ?? 0), 0);
@@ -148,20 +147,6 @@ export function AgentCard({ name, color, points, isActive, capturedPieces = [], 
         <div className="flex-1" />
       )}
 
-      {/* Points */}
-      <div className="flex items-baseline gap-1 shrink-0">
-        <AnimatePresence mode="wait">
-          <motion.span
-            key={points}
-            initial={{ scale: 1.3, color: cfg.accentLight }}
-            animate={{ scale: 1, color: '#F5F0E8' }}
-            className="font-display font-bold text-base"
-          >
-            {points}
-          </motion.span>
-        </AnimatePresence>
-        <span className="text-muted text-xs">pts</span>
-      </div>
     </div>
   );
 }
