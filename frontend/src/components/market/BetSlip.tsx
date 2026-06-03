@@ -74,9 +74,15 @@ export function BetSlip() {
           />
         </div>
         {selectedOdds && stake > 0 && (
-          <div className="text-right shrink-0">
-            <div className="text-xs text-muted">×{selectedOdds.toFixed(2)}</div>
-            <div className="text-sm font-semibold text-gold">${payout.toFixed(2)}</div>
+          <div className="flex gap-3 shrink-0">
+            <div className="text-right">
+              <div className="text-xs text-muted">Odds</div>
+              <div className="text-sm font-semibold text-ivory">×{selectedOdds.toFixed(2)}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-muted">To win</div>
+              <div className="text-sm font-semibold text-gold">${payout.toFixed(2)}</div>
+            </div>
           </div>
         )}
       </div>
