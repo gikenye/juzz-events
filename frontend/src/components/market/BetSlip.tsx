@@ -48,7 +48,7 @@ export function BetSlip() {
         {[1, 2, 5, 10].map(amt => (
           <button
             key={amt}
-            onClick={() => setStake(String(amt))}
+            onClick={() => setStake(amt.toFixed(2))}
             disabled={!isMarketOpen}
             className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-40 ${
               parseFloat(stakeAmount) === amt
