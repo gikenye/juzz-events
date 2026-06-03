@@ -77,7 +77,7 @@ export function OddsDisplay({ onSelect, selected }: OddsDisplayProps) {
 
       {/* ── Desktop: vertical stacked cards ── */}
       <div className="hidden lg:flex flex-col gap-2">
-        {OUTCOMES.map(({ key, label, color, bg, selectedBg }) => {
+        {OUTCOMES.map(({ key, label, color, selectedBg }) => {
           const prob = probabilities[key];
           const odd = odds[key];
           const isSelected = selected === key;
