@@ -78,7 +78,7 @@ function AgentAvatar({ color, isActive }: { color: 'maxi' | 'gotham'; isActive: 
   const cfg = configs[color];
 
   return (
-    <div className="relative w-11 h-11 shrink-0">
+    <div className="relative w-7 h-7 lg:w-11 lg:h-11 shrink-0">
       {/* Outer glow pulse when active */}
       {isActive && (
         <motion.div
@@ -91,7 +91,7 @@ function AgentAvatar({ color, isActive }: { color: 'maxi' | 'gotham'; isActive: 
 
       {/* Avatar circle */}
       <div
-        className="w-11 h-11 rounded-full flex items-center justify-center"
+        className="w-full h-full rounded-full flex items-center justify-center"
         style={{
           background: `linear-gradient(145deg, ${cfg.bgFrom} 0%, ${cfg.bgTo} 100%)`,
           border: `2px solid ${isActive ? cfg.accentLight : cfg.accent + 'aa'}`,
@@ -101,7 +101,7 @@ function AgentAvatar({ color, isActive }: { color: 'maxi' | 'gotham'; isActive: 
           transition: 'box-shadow 0.3s ease, border-color 0.3s ease',
         }}
       >
-        <svg width="38" height="38" viewBox="0 0 22 22" fill="none">
+        <svg className="w-[80%] h-[80%]" viewBox="0 0 22 22" fill="none">
           {color === 'maxi'
             ? <MaxiIcon fill={cfg.iconColor} lensColor={cfg.lensColor} />
             : <GothamIcon fill={cfg.iconColor} lensColor={cfg.lensColor} />
