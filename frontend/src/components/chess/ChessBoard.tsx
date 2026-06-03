@@ -27,7 +27,7 @@ export function ChessBoard() {
   }
 
   return (
-    <div className="w-full aspect-square max-w-[420px] mx-auto rounded-lg overflow-hidden shadow-2xl">
+    <div className="w-full aspect-square mx-auto rounded-lg overflow-hidden shadow-2xl" style={{ maxWidth: 'min(420px, calc(100dvh - 220px))' }}>
       <Chessboard
         options={{
           position: fen,
