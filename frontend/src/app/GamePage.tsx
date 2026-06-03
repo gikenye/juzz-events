@@ -61,31 +61,27 @@ export function GamePage() {
           {/* Chess area */}
           <div className="flex flex-col gap-1.5">
             {/* Agent Maxi (black, top) — shows white pieces captured from Gotham */}
-            <div className="w-full max-w-[420px] mx-auto">
-              <AgentCard
-                name="Agent Maxi"
-                color="maxi"
-                points={maxiPoints}
-                isActive={turn === 'b' && !isFinished}
-                capturedPieces={capturedPieces.byMaxi}
-                capturedPieceColor="white"
-              />
-            </div>
+            <AgentCard
+              name="Agent Maxi"
+              color="maxi"
+              points={maxiPoints}
+              isActive={turn === 'b' && !isFinished}
+              capturedPieces={capturedPieces.byMaxi}
+              capturedPieceColor="white"
+            />
 
             {/* The board */}
             <ChessBoard />
 
             {/* Agent Gotham (white, bottom) — shows black pieces captured from Maxi */}
-            <div className="w-full max-w-[420px] mx-auto">
-              <AgentCard
-                name="Agent Gotham"
-                color="gotham"
-                points={gothamPoints}
-                isActive={turn === 'w' && !isFinished}
-                capturedPieces={capturedPieces.byGotham}
-                capturedPieceColor="black"
-              />
-            </div>
+            <AgentCard
+              name="Agent Gotham"
+              color="gotham"
+              points={gothamPoints}
+              isActive={turn === 'w' && !isFinished}
+              capturedPieces={capturedPieces.byGotham}
+              capturedPieceColor="black"
+            />
           </div>
 
           {/* Market panel */}
