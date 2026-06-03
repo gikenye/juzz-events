@@ -11,7 +11,7 @@ node_modules/
 resources/
 
 # Root-level piece SVGs (duplicated in frontend/public/pieces/)
-pieces/
+/pieces/
 
 # OS
 .DS_Store
