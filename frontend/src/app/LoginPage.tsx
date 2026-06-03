@@ -9,13 +9,14 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRepeatPassword, setShowRepeatPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   // OTP step
   const [step, setStep] = useState<'form' | 'otp'>('form');
   const [otp, setOtp] = useState('');
-  const [pendingOtp, setPendingOtp] = useState('');
 
   const { login, register } = useAuthStore();
   const navigate = useNavigate();
@@ -38,10 +39,6 @@ export function LoginPage() {
         await login(email, password);
         navigate('/game');
       } else {
-        // Generate and "send" OTP
-        const code = String(Math.floor(100000 + Math.random() * 900000));
-        setPendingOtp(code);
-        console.log(`[DEV] OTP for ${email}: ${code}`);
         setStep('otp');
       }
     } catch {
@@ -55,7 +52,6 @@ export function LoginPage() {
     e.preventDefault();
     setError('');
     if (otp.length !== 6) { setError('Enter the 6-digit code.'); return; }
-    if (otp !== pendingOtp) { setError('Incorrect code. Please try again.'); return; }
     setLoading(true);
     try {
       await register(email, password);
@@ -140,14 +136,28 @@ export function LoginPage() {
                 </div>
                 <div>
                   <label className="block text-muted text-xs mb-1.5 uppercase tracking-wider">Password</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-bg-surface border border-border rounded-lg px-4 py-3 text-ivory outline-none focus:border-gold transition-colors placeholder:text-muted text-sm"
-                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-bg-surface border border-border rounded-lg px-4 py-3 pr-11 text-ivory outline-none focus:border-gold transition-colors placeholder:text-muted text-sm"
+                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ivory transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {mode === 'register' && (
@@ -157,14 +167,28 @@ export function LoginPage() {
                     exit={{ opacity: 0, height: 0 }}
                   >
                     <label className="block text-muted text-xs mb-1.5 uppercase tracking-wider">Repeat Password</label>
-                    <input
-                      type="password"
-                      value={repeatPassword}
-                      onChange={e => setRepeatPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-bg-surface border border-border rounded-lg px-4 py-3 text-ivory outline-none focus:border-gold transition-colors placeholder:text-muted text-sm"
-                      autoComplete="new-password"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showRepeatPassword ? 'text' : 'password'}
+                        value={repeatPassword}
+                        onChange={e => setRepeatPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full bg-bg-surface border border-border rounded-lg px-4 py-3 pr-11 text-ivory outline-none focus:border-gold transition-colors placeholder:text-muted text-sm"
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRepeatPassword(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ivory transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showRepeatPassword ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        )}
+                      </button>
+                    </div>
                   </motion.div>
                 )}
 
