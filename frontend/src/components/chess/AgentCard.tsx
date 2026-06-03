@@ -121,32 +121,35 @@ export function AgentCard({ name, color, isActive, capturedPieces = [], captured
 
   return (
     <div className="flex items-center gap-2.5">
+      {/* Icon — always on the outer left */}
       <AgentAvatar color={color} isActive={isActive} />
 
-      {/* Name + active pulse */}
-      <div className="shrink-0 flex items-center gap-1.5">
-        <span className="font-display text-ivory text-sm font-semibold">{name}</span>
-        {isActive && (
-          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: cfg.accent }} />
-        )}
-      </div>
-
-      {/* Captured pieces */}
-      {sorted.length > 0 ? (
-        <div className="flex items-center gap-0.5 flex-wrap flex-1 min-w-0">
-          {sorted.map((piece, i) => (
-            <span key={i} className="text-sm leading-none" style={{ color: pieceColor }}>
-              {PIECE_UNICODE[piece] ?? piece}
-            </span>
-          ))}
-          {advantage > 0 && (
-            <span className="text-xs text-muted ml-0.5">+{advantage}</span>
+      {/* On mobile: name → captured. On desktop: captured → name (name faces the board) */}
+      <div className="flex-1 min-w-0 flex items-center gap-2 lg:flex-row-reverse">
+        {/* Name + active pulse */}
+        <div className="shrink-0 flex items-center gap-1.5">
+          <span className="font-display text-ivory text-sm font-semibold">{name}</span>
+          {isActive && (
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: cfg.accent }} />
           )}
         </div>
-      ) : (
-        <div className="flex-1" />
-      )}
 
+        {/* Captured pieces */}
+        {sorted.length > 0 ? (
+          <div className="flex items-center gap-0.5 flex-wrap flex-1 min-w-0 lg:justify-end">
+            {sorted.map((piece, i) => (
+              <span key={i} className="text-sm leading-none" style={{ color: pieceColor }}>
+                {PIECE_UNICODE[piece] ?? piece}
+              </span>
+            ))}
+            {advantage > 0 && (
+              <span className="text-xs text-muted ml-0.5">+{advantage}</span>
+            )}
+          </div>
+        ) : (
+          <div className="flex-1" />
+        )}
+      </div>
     </div>
   );
 }
