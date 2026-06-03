@@ -25,8 +25,27 @@ export function BetSlip() {
         <span className="text-muted text-xs">${balance.toFixed(2)} available</span>
       </div>
 
+      {/* Quick amounts */}
+      <div className="flex gap-2">
+        {[1, 2, 5, 10].map(amt => (
+          <button
+            key={amt}
+            onClick={() => setStake(String(amt))}
+            disabled={!isMarketOpen}
+            className={`flex-1 py-2.5 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-40 ${
+              parseFloat(stakeAmount) === amt
+                ? 'border-gold text-gold bg-gold/10'
+                : 'border-border text-ivory hover:border-gold hover:text-gold'
+            }`}
+          >
+            ${amt}
+          </button>
+        ))}
+      </div>
+
       {/* Amount input */}
       <div className="relative">
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted text-sm">$</span>
         <input
           type="number"
           min="0.01"
@@ -35,23 +54,8 @@ export function BetSlip() {
           value={stakeAmount}
           onChange={e => setStake(e.target.value)}
           disabled={!isMarketOpen}
-          className="w-full bg-bg-surface border border-border rounded-lg px-4 py-3 pr-16 text-ivory text-lg font-semibold outline-none focus:border-gold transition-colors placeholder:text-muted disabled:opacity-50"
+          className="w-full bg-bg-surface border border-border rounded-lg pl-8 pr-4 py-3 text-ivory text-lg font-semibold outline-none focus:border-gold transition-colors placeholder:text-muted disabled:opacity-50"
         />
-        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted text-sm">$</span>
-      </div>
-
-      {/* Quick amounts */}
-      <div className="flex gap-2">
-        {[5, 10, 25, 50].map(amt => (
-          <button
-            key={amt}
-            onClick={() => setStake(String(amt))}
-            disabled={!isMarketOpen}
-            className="flex-1 py-1.5 text-xs rounded border border-border text-muted hover:border-gold hover:text-gold transition-colors disabled:opacity-40"
-          >
-            {amt}
-          </button>
-        ))}
       </div>
 
       {/* Payout preview */}
