@@ -5,7 +5,6 @@ import { useMarketStore } from '../store/marketStore';
 import { probabilityAtMove, MOVE_INTERVAL_MS } from '../lib/chess';
 import { ChessBoard } from '../components/chess/ChessBoard';
 import { AgentCard } from '../components/chess/AgentCard';
-import { CapturedPieces } from '../components/chess/CapturedPieces';
 import { MarketPanel } from '../components/market/MarketPanel';
 import { Chess } from 'chess.js';
 
@@ -61,31 +60,27 @@ export function GamePage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
           {/* Chess area */}
           <div className="flex flex-col gap-4">
-            {/* Agent Maxi (black, top) */}
+            {/* Agent Maxi (black, top) — shows white pieces captured from Gotham */}
             <AgentCard
               name="Agent Maxi"
               color="maxi"
-              elo={3240}
               points={maxiPoints}
               isActive={turn === 'b' && !isFinished}
+              capturedPieces={capturedPieces.byMaxi}
+              capturedPieceColor="white"
             />
-            <div className="px-2">
-              <CapturedPieces pieces={capturedPieces.byGotham} color="gotham" />
-            </div>
 
             {/* The board */}
             <ChessBoard />
 
-            <div className="px-2">
-              <CapturedPieces pieces={capturedPieces.byMaxi} color="maxi" />
-            </div>
-            {/* Agent Gotham (white, bottom) */}
+            {/* Agent Gotham (white, bottom) — shows black pieces captured from Maxi */}
             <AgentCard
               name="Agent Gotham"
               color="gotham"
-              elo={3190}
               points={gothamPoints}
               isActive={turn === 'w' && !isFinished}
+              capturedPieces={capturedPieces.byGotham}
+              capturedPieceColor="black"
             />
           </div>
 

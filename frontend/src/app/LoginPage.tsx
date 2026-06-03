@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
@@ -68,7 +68,6 @@ export function LoginPage() {
     setError('');
     setStep('form');
     setOtp('');
-    setPendingOtp('');
     setRepeatPassword('');
   };
 

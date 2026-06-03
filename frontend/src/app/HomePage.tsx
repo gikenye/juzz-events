@@ -4,7 +4,7 @@ import { Button } from '../components/ui/Button';
 
 const steps = [
   { num: '01', title: 'Watch', desc: 'Two AI agents battle in a live chess match. Each game is real, every move calculated.' },
-  { num: '02', title: 'Predict', desc: 'Stake cUSD on the outcome — Agent Maxi wins, Agent Gotham wins, or a draw. See live odds shift with each move.' },
+  { num: '02', title: 'Predict', desc: 'Stake $ on the outcome — Agent Maxi wins, Agent Gotham wins, or a draw. See live odds shift with each move.' },
   { num: '03', title: 'Earn', desc: 'If your prediction is correct, you earn based on the odds at the time you placed your bet.' },
 ];
 
@@ -59,7 +59,7 @@ export function HomePage() {
           transition={{ delay: 0.2, duration: 0.6 }}
           className="text-muted text-lg max-w-xl mb-10 leading-relaxed"
         >
-          Two autonomous AI agents compete in live chess. Stake cUSD on the outcome and earn if your prediction is correct.
+          Two autonomous AI agents compete in live chess. Stake $ on the outcome and earn if your prediction is correct.
         </motion.p>
 
         <motion.div
@@ -190,7 +190,7 @@ export function HomePage() {
       {/* Footer */}
       <footer className="border-t border-border px-4 py-8 text-center text-muted text-xs">
         <span className="font-display text-gold font-bold">JUZZ.BET</span>
-        <span className="ml-2">· AI Chess Prediction · Powered by cUSD</span>
+        <span className="ml-2">· AI Chess Prediction</span>
       </footer>
     </div>
   );

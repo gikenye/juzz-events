@@ -17,7 +17,7 @@ export function WalletPage() {
     const n = parseFloat(amount);
     if (!n || n <= 0) return;
     addBalance(n);
-    setTxMsg(`Deposited ${n.toFixed(2)} cUSD`);
+    setTxMsg(`Deposited $${n.toFixed(2)}`);
     setAmount('');
     setShowDeposit(false);
   };
@@ -27,7 +27,7 @@ export function WalletPage() {
     if (!n || n <= 0) return;
     if (n > balance) { setTxMsg('Insufficient balance.'); return; }
     deductBalance(n);
-    setTxMsg(`Withdrawn ${n.toFixed(2)} cUSD`);
+    setTxMsg(`Withdrawn $${n.toFixed(2)}`);
     setAmount('');
     setShowWithdraw(false);
   };
@@ -47,7 +47,7 @@ export function WalletPage() {
             <div className="text-muted text-sm uppercase tracking-wider mb-2">Available Balance</div>
             <div className="font-display text-5xl font-bold text-ivory mb-1">
               {balance.toFixed(2)}
-              <span className="text-gotham text-2xl ml-2">cUSD</span>
+              <span className="text-gotham text-2xl ml-2">USD</span>
             </div>
             <div className="text-muted text-xs mt-2">Celo Dollar · Testnet</div>
           </div>
@@ -86,7 +86,7 @@ export function WalletPage() {
                       <span className="text-muted text-xs ml-2">@ {b.odds.toFixed(2)}×</span>
                     </div>
                     <div className="text-right">
-                      <div className="text-ivory text-sm">{b.stake.toFixed(2)} cUSD</div>
+                      <div className="text-ivory text-sm">${b.stake.toFixed(2)}</div>
                       <div className="text-muted text-xs">{new Date(b.timestamp).toLocaleTimeString()}</div>
                     </div>
                   </div>
@@ -98,7 +98,7 @@ export function WalletPage() {
       </div>
 
       {/* Deposit modal */}
-      <Modal open={showDeposit} onClose={() => setShowDeposit(false)} title="Deposit cUSD">
+      <Modal open={showDeposit} onClose={() => setShowDeposit(false)} title="Deposit">
         <div className="flex flex-col gap-4">
           <p className="text-muted text-sm">Enter the amount you want to deposit (stub — no real transaction).</p>
           <input
@@ -114,9 +114,9 @@ export function WalletPage() {
       </Modal>
 
       {/* Withdraw modal */}
-      <Modal open={showWithdraw} onClose={() => setShowWithdraw(false)} title="Withdraw cUSD">
+      <Modal open={showWithdraw} onClose={() => setShowWithdraw(false)} title="Withdraw">
         <div className="flex flex-col gap-4">
-          <p className="text-muted text-sm">Available: {balance.toFixed(2)} cUSD</p>
+          <p className="text-muted text-sm">Available: ${balance.toFixed(2)}</p>
           <input
             type="number"
             min="0.01"

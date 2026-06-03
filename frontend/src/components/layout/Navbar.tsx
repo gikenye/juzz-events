@@ -31,7 +31,7 @@ export function Navbar() {
             className="hidden sm:flex items-center gap-2 border border-border rounded-full px-4 py-1.5 text-sm text-ivory hover:border-gold transition-colors"
           >
             <span className="w-2 h-2 rounded-full bg-gotham animate-pulse" />
-            {balance.toFixed(2)} cUSD
+            ${balance.toFixed(2)}
           </button>
 
           {/* Auth */}

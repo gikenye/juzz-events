@@ -22,7 +22,7 @@ export function BetSlip() {
     <div className="bg-bg-card rounded-xl border border-border p-4 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h3 className="font-display text-ivory text-sm font-semibold uppercase tracking-wider">Your Stake</h3>
-        <span className="text-muted text-xs">{balance.toFixed(2)} cUSD available</span>
+        <span className="text-muted text-xs">${balance.toFixed(2)} available</span>
       </div>
 
       {/* Amount input */}
@@ -37,7 +37,7 @@ export function BetSlip() {
           disabled={!isMarketOpen}
           className="w-full bg-bg-surface border border-border rounded-lg px-4 py-3 pr-16 text-ivory text-lg font-semibold outline-none focus:border-gold transition-colors placeholder:text-muted disabled:opacity-50"
         />
-        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted text-sm">cUSD</span>
+        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted text-sm">$</span>
       </div>
 
       {/* Quick amounts */}
@@ -58,7 +58,7 @@ export function BetSlip() {
       {payout > 0 && selectedOutcome && (
         <div className="flex justify-between text-sm bg-bg-surface rounded-lg px-4 py-3">
           <span className="text-muted">Potential win</span>
-          <span className="text-gold font-semibold">{payout.toFixed(2)} cUSD</span>
+          <span className="text-gold font-semibold">${payout.toFixed(2)}</span>
         </div>
       )}
 
