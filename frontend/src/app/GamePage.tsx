@@ -59,7 +59,7 @@ export function GamePage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
           {/* Chess area */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
             {/* Agent Maxi (black, top) — shows white pieces captured from Gotham */}
             <AgentCard
               name="Agent Maxi"

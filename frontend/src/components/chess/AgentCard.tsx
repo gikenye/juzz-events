@@ -149,18 +149,18 @@ export function AgentCard({ name, color, points, isActive, capturedPieces = [], 
       )}
 
       {/* Points */}
-      <div className="text-right shrink-0">
+      <div className="flex items-baseline gap-1 shrink-0">
         <AnimatePresence mode="wait">
-          <motion.div
+          <motion.span
             key={points}
             initial={{ scale: 1.3, color: cfg.accentLight }}
             animate={{ scale: 1, color: '#F5F0E8' }}
             className="font-display font-bold text-base"
           >
             {points}
-          </motion.div>
+          </motion.span>
         </AnimatePresence>
-        <div className="text-muted text-xs">pts</div>
+        <span className="text-muted text-xs">pts</span>
       </div>
     </div>
   );

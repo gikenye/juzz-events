@@ -27,7 +27,7 @@ export function ChessBoard() {
   }
 
   return (
-    <div className="w-full aspect-square max-w-[520px] mx-auto rounded-lg overflow-hidden shadow-2xl">
+    <div className="w-full aspect-square max-w-[420px] mx-auto rounded-lg overflow-hidden shadow-2xl">
       <Chessboard
         options={{
           position: fen,
