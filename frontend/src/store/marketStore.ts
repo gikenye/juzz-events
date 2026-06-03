@@ -28,7 +28,7 @@ export const useMarketStore = create<MarketState>((set, get) => ({
   isMarketOpen: true,
   timeRemaining: MARKET_DURATION,
   selectedOutcome: null,
-  stakeAmount: '',
+  stakeAmount: '5',
   bets: [],
   betError: null,
 
