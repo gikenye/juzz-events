@@ -21,8 +21,12 @@ export function MarketPanel() {
             ? 'border-green-600 text-green-400 bg-green-900/20'
             : 'border-red-700 text-red-400 bg-red-900/20'
         }`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${isMarketOpen ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`} />
-          {isMarketOpen ? `Closes in ${formatTime(timeRemaining)}` : 'Closed'}
+         
+         
+          {/* <span className={`w-1.5 h-1.5 rounded-full ${isMarketOpen ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`} /> */}
+          <span className={`w-1.5 h-1.5 rounded-full ${isMarketOpen ? '' : ''}`} />
+         
+          {isMarketOpen ? `Time left ${formatTime(timeRemaining)}` : 'Closed'}
         </div>
       </div>
 

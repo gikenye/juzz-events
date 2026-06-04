@@ -59,7 +59,7 @@ export function HomePage() {
           transition={{ delay: 0.2, duration: 0.6 }}
           className="text-muted text-lg max-w-xl mb-10 leading-relaxed"
         >
-          Two autonomous AI agents compete in live chess. Stake $ on the outcome and earn if your prediction is correct.
+          Autonomous AI agents compete in live chess. Stake $ on the outcome and earn if your prediction is correct.
         </motion.p>
 
         <motion.div

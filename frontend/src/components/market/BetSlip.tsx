@@ -28,7 +28,7 @@ export function BetSlip() {
         <div className="flex items-center gap-2">
           <h3 className="font-display text-ivory text-xs font-semibold uppercase tracking-wider">Stake</h3>
           {!selectedOutcome && (
-            <span className="text-[11px] italic text-muted/60 tracking-wide">— pick an outcome</span>
+            <span className="text-[11px] italic text-muted/60 tracking-wide">— please pick an outcome</span>
           )}
           {selectedOutcome && (
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
