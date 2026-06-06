@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run --exclude '**/*.e2e.test.ts'",
-    "e2e": "vitest run src/lib/e2e.test.ts src/store/gameStore.e2e.test.ts src/lib/auth.e2e.test.ts src/store/marketStore.e2e.test.ts"
+    "e2e": "vitest run src/lib/e2e.test.ts src/store/gameStore.e2e.test.ts src/lib/auth.e2e.test.ts src/store/marketStore.e2e.test.ts src/lib/wallet.e2e.test.ts"
   },
   "dependencies": {
     "chess.js": "^1.4.0",
@@ -18,6 +18,7 @@
     "react-chessboard": "^5.10.0",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.16.0",
+    "viem": "^2.52.2",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

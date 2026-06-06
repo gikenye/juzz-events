@@ -110,3 +110,18 @@ export interface WsError {
   code: string;
   message: string;
 }
+
+export interface Position {
+  market_id: string;
+  yes_shares: number;
+  no_shares: number;
+  yes_cost: number;
+  no_cost: number;
+}
+
+// PWA passkey-Safe deposit step (each is one execTransaction the passkey signs).
+export interface DepositStep {
+  step: 'approve' | 'deposit';
+  safe_tx_hash: string;
+  nonce: number;
+}
