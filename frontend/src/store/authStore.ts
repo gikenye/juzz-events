@@ -7,6 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '../lib/api';
+import { socket } from '../lib/ws';
 import { createPasskey, getPasskey, passkeySupported } from '../lib/webauthn';
 
 interface Account { id: string; email: string }
@@ -78,6 +79,7 @@ export const useAuthStore = create<AuthState>()(
 
       setTradingSession(token, wallet) {
         set({ tradingToken: token, wallet });
+        socket.connect(token); // upgrade the live socket to an authenticated (trading) connection
         void get().refreshBalance();
       },
 
@@ -90,6 +92,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout() {
         set({ user: null, loginToken: null, tradingToken: null, wallet: null, balance: 0 });
+        socket.connect(null); // drop back to a spectator connection
       },
 
       deductBalance(amount) { set(s => ({ balance: Math.max(0, s.balance - amount) })); },

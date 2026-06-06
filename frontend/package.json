@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run --exclude '**/*.e2e.test.ts'",
-    "e2e": "vitest run src/lib/e2e.test.ts src/store/gameStore.e2e.test.ts src/lib/auth.e2e.test.ts"
+    "e2e": "vitest run src/lib/e2e.test.ts src/store/gameStore.e2e.test.ts src/lib/auth.e2e.test.ts src/store/marketStore.e2e.test.ts"
   },
   "dependencies": {
     "chess.js": "^1.4.0",
