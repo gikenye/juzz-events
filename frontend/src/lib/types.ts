@@ -1,0 +1,112 @@
+// Backend wire types — mirror docs/frontend-integration.md (juzz repo).
+// Money is canonical micro-dollars (µ$, 6dp) everywhere except the on-chain deposit tx.
+
+export type GameType = 'chess' | 'othello';
+export type Seat = 'white' | 'black';
+
+export interface Player {
+  seat: Seat;
+  agent_id: string;
+  name: string;
+  style: string;
+}
+
+// clocks_ms is [white, black].
+export interface GameSummary {
+  id: string;
+  game_type: GameType;
+  time_control: string; // "3+0"
+  move_number: number;
+  clocks_ms: [number, number];
+  players: Player[];
+  state: string; // chess: FEN
+}
+
+export interface GameSnapshot extends GameSummary {
+  last_signal?: PositionSignal | null;
+}
+
+export interface PositionSignal {
+  eval_cp: number;
+  win_prob_white: number;
+  is_tactical: boolean;
+  material_diff: number;
+  clock_pressure: boolean;
+}
+
+export type GameResult =
+  | 'white_wins' | 'black_wins' | 'draw'
+  | 'white_timeout' | 'black_timeout' | 'aborted'
+  | string;
+
+// GameEvent — serde-tagged by `type`. Shared: seq, game_type, clocks_ms, move_number, state.
+export type GameEvent =
+  | ({ type: 'started' } & GameEventBase & { players?: Player[]; time_control?: string })
+  | ({ type: 'move_played' } & GameEventBase & { notation: string; signal?: PositionSignal })
+  | { type: 'engine_error'; seq: number; code: string; message: string }
+  | ({ type: 'game_over' } & GameEventBase & { result: GameResult; total_moves?: number });
+
+interface GameEventBase {
+  seq: number;
+  game_type: GameType;
+  move_number: number;
+  clocks_ms: [number, number];
+  state: string;
+}
+
+export interface MarketSummary {
+  market_id: string;
+  game_id: string;
+  question: string;
+  category: string;
+  yes_price: number;
+  no_price: number;
+  resolved: boolean;
+  winning_outcome: boolean | null;
+  liquidity_b: number;
+  created_at_seq: number;
+  resolved_at_seq: number | null;
+}
+
+export type MarketEvent =
+  | { type: 'created'; market_id: string; yes_price: number; no_price: number; resolved: boolean }
+  | { type: 'price_changed'; market_id: string; yes_price: number; no_price: number; resolved: boolean }
+  | { type: 'resolved'; market_id: string; yes_price: number; no_price: number; resolved: boolean; winning_outcome?: boolean }
+  | { type: 'voided'; market_id: string; resolved: boolean };
+
+export type Side = 'yes' | 'no';
+
+export interface TradeConfirmed {
+  type: 'trade_confirmed';
+  v: number;
+  market_id: string;
+  side: Side;
+  shares: number;
+  cost: number;
+  yes_price: number;
+  no_price: number;
+  resolved: boolean;
+}
+
+export type UserEvent =
+  | { type: 'fill'; trade_id: string; market_id: string; side: Side; shares: number; price: number; cost: number; ts_ms: number }
+  | { type: 'position_update'; market_id: string; yes_shares: number; no_shares: number; avg_yes_price: number; avg_no_price: number }
+  | { type: 'settlement'; settlement_id: string; market_id: string; payout: number; winning_side: boolean | null; ts_ms: number };
+
+export interface Balance {
+  available: string; // µ$ as decimal string
+  locked: string;
+}
+
+export interface AssetInfo {
+  symbol: 'USDC' | 'USDT' | 'USDM';
+  address: string;
+  decimals: number;
+}
+
+export interface WsError {
+  type: 'error';
+  v?: number;
+  code: string;
+  message: string;
+}
