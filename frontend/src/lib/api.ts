@@ -1,6 +1,6 @@
 // Typed REST client for the juzz backend. Money in/out is canonical µ$ (6dp strings).
 import { API_URL, GAME_TYPE } from './config';
-import type { GameSummary, MarketSummary, Balance, AssetInfo } from './types';
+import type { GameSummary, MarketSummary, Balance, AssetInfo, Position, DepositStep } from './types';
 
 class ApiError extends Error {
   status: number;
@@ -46,6 +46,8 @@ export const api = {
     req<MarketSummary[]>(`/markets?game_id=${encodeURIComponent(gameId)}`),
   balance: (wallet: string) =>
     req<Balance>(`/balance?user=${encodeURIComponent(wallet)}`),
+  positions: (wallet: string) =>
+    req<Position[]>(`/positions?user=${encodeURIComponent(wallet)}`),
   assets: () => req<{ assets: AssetInfo[] }>('/assets').then(r => r.assets),
 
   // Email-OTP sign-in → login token (identifies the account; not a trading session).
@@ -70,6 +72,17 @@ export const api = {
   passkeyRegisterFinish: (loginToken: string, ceremonyId: string, credential: Record<string, unknown>) =>
     req<{ ok: boolean }>('/auth/passkey/register/finish',
       { method: 'POST', headers: bearer(loginToken), body: JSON.stringify({ ceremony_id: ceremonyId, credential }) }),
+
+  // PWA passkey-owned Safe (funding). Login-token gated.
+  walletRegister: (loginToken: string) =>
+    req<{ safe: string; owner_signer: string; deployed: boolean }>('/wallet/register',
+      { method: 'POST', headers: bearer(loginToken) }),
+  walletDepositPrepare: (loginToken: string, amount: string, depositSecret: string) =>
+    req<{ steps: DepositStep[]; commitment: string }>('/wallet/deposit/prepare',
+      { method: 'POST', headers: bearer(loginToken), body: JSON.stringify({ amount, deposit_secret: depositSecret }) }),
+  walletDepositSubmit: (loginToken: string, step: string, assertion: unknown) =>
+    req<{ tx_hash: string; step: string }>('/wallet/deposit/submit',
+      { method: 'POST', headers: bearer(loginToken), body: JSON.stringify({ step, assertion }) }),
 
   // Deposit-as-auth: reveal the deposit secret to mint a trading session bound to the wallet.
   session: (nonce: string) =>

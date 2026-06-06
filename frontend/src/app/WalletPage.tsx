@@ -1,134 +1,245 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { useMarketStore } from '../store/marketStore';
+import { api, ApiError } from '../lib/api';
+import { newSecret, commitmentOf } from '../lib/secret';
+import { connectWallet, depositFromWallet } from '../lib/celo';
+import { signSafeTxHash } from '../lib/webauthn';
+import { COLLATERAL_DECIMALS, MINIPAY_ADD_CASH } from '../lib/config';
+import type { Position } from '../lib/types';
 import { Button } from '../components/ui/Button';
-import { Modal } from '../components/ui/Modal';
+
+const PRESETS = [1, 2, 5, 10]; // dollars
+const toBase = (usd: number) => BigInt(Math.round(usd * 10 ** COLLATERAL_DECIMALS)).toString();
+const money = (micro: string) => (Number(micro) / 10 ** COLLATERAL_DECIMALS).toFixed(2);
+const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+// Poll deposit-as-auth: the secret claims a trading session once the deposit confirms.
+async function pollSession(secret: `0x${string}`, tries = 30): Promise<{ token: string; wallet: string }> {
+  for (let i = 0; i < tries; i++) {
+    try { return await api.session(secret); }
+    catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  throw new Error('Deposit not yet confirmed — it can take a minute. Check back shortly.');
+}
 
 export function WalletPage() {
-  const { user, balance, addBalance, deductBalance } = useAuthStore();
-  const { bets } = useMarketStore();
-  const [showDeposit, setShowDeposit] = useState(false);
-  const [showWithdraw, setShowWithdraw] = useState(false);
-  const [amount, setAmount] = useState('');
-  const [txMsg, setTxMsg] = useState('');
+  const { user, loginToken, tradingToken, wallet, isMiniPay, detectMiniPay } = useAuthStore();
+  useEffect(() => { detectMiniPay(); }, [detectMiniPay]);
 
-  const handleDeposit = () => {
-    const n = parseFloat(amount);
-    if (!n || n <= 0) return;
-    addBalance(n);
-    setTxMsg(`Deposited $${n.toFixed(2)}`);
-    setAmount('');
-    setShowDeposit(false);
-  };
-
-  const handleWithdraw = () => {
-    const n = parseFloat(amount);
-    if (!n || n <= 0) return;
-    if (n > balance) { setTxMsg('Insufficient balance.'); return; }
-    deductBalance(n);
-    setTxMsg(`Withdrawn $${n.toFixed(2)}`);
-    setAmount('');
-    setShowWithdraw(false);
-  };
+  let body;
+  if (tradingToken && wallet) body = <WalletHome />;
+  else if (isMiniPay) body = <MiniPayFund />;
+  else if (user && loginToken) body = <PasskeyFund loginToken={loginToken} />;
+  else body = <SignInPrompt />;
 
   return (
     <div className="min-h-screen bg-bg-base">
       <div className="max-w-2xl mx-auto px-4 py-12">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="font-display text-ivory text-3xl font-bold mb-2">Wallet</h1>
-          <p className="text-muted text-sm mb-8">{user ? user.email : 'Guest account'}</p>
-
-          {/* Balance card */}
-          <div
-            className="rounded-2xl border border-gotham/30 p-8 mb-6 relative overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, #00B4A615 0%, #141418 60%)' }}
-          >
-            <div className="text-muted text-sm uppercase tracking-wider mb-2">Available Balance</div>
-            <div className="font-display text-5xl font-bold text-ivory mb-1">
-              {balance.toFixed(2)}
-              <span className="text-gotham text-2xl ml-2">USD</span>
-            </div>
-            <div className="text-muted text-xs mt-2">Celo Dollar · Testnet</div>
-          </div>
-
-          {/* Actions */}
-          <div className="grid grid-cols-2 gap-4 mb-8">
-            <Button size="lg" variant="gotham" onClick={() => { setShowDeposit(true); setAmount(''); setTxMsg(''); }}>
-              ↓ Deposit
-            </Button>
-            <Button size="lg" variant="ghost" onClick={() => { setShowWithdraw(true); setAmount(''); setTxMsg(''); }}>
-              ↑ Withdraw
-            </Button>
-          </div>
-
-          {txMsg && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-6 py-3 px-4 rounded-lg bg-green-900/20 border border-green-700/50 text-green-400 text-sm"
-            >
-              ✓ {txMsg}
-            </motion.div>
-          )}
-
-          {/* Bet history */}
-          <div className="bg-bg-card border border-border rounded-xl p-6">
-            <h2 className="font-display text-ivory font-semibold mb-4">Bet History</h2>
-            {bets.length === 0 ? (
-              <p className="text-muted text-sm">No bets placed yet.</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {[...bets].reverse().map(b => (
-                  <div key={b.id} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                    <div>
-                      <span className="text-ivory text-sm capitalize">{b.outcome}</span>
-                      <span className="text-muted text-xs ml-2">@ {b.odds.toFixed(2)}×</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-ivory text-sm">${b.stake.toFixed(2)}</div>
-                      <div className="text-muted text-xs">{new Date(b.timestamp).toLocaleTimeString()}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <p className="text-muted text-sm mb-8">{user ? user.email : 'Guest'}</p>
+          {body}
         </motion.div>
       </div>
+    </div>
+  );
+}
 
-      {/* Deposit modal */}
-      <Modal open={showDeposit} onClose={() => setShowDeposit(false)} title="Deposit">
-        <div className="flex flex-col gap-4">
-          <p className="text-muted text-sm">Enter the amount you want to deposit (stub — no real transaction).</p>
-          <input
-            type="number"
-            min="0.01"
-            placeholder="0.00"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-            className="bg-bg-surface border border-border rounded-lg px-4 py-3 text-ivory outline-none focus:border-gold transition-colors"
-          />
-          <Button onClick={handleDeposit} className="w-full">Deposit</Button>
-        </div>
-      </Modal>
+// ── funded: balance · withdraw · positions ──────────────────────────────────
+function WalletHome() {
+  const { wallet, tradingToken, balance, refreshBalance, logout } = useAuthStore();
+  const [locked, setLocked] = useState('0');
+  const [pos, setPos] = useState<Position[]>([]);
+  const [amt, setAmt] = useState(5);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string>();
 
-      {/* Withdraw modal */}
-      <Modal open={showWithdraw} onClose={() => setShowWithdraw(false)} title="Withdraw">
-        <div className="flex flex-col gap-4">
-          <p className="text-muted text-sm">Available: ${balance.toFixed(2)}</p>
-          <input
-            type="number"
-            min="0.01"
-            max={balance}
-            placeholder="0.00"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-            className="bg-bg-surface border border-border rounded-lg px-4 py-3 text-ivory outline-none focus:border-gold transition-colors"
-          />
-          <Button onClick={handleWithdraw} variant="ghost" className="w-full">Withdraw</Button>
+  const refresh = () => {
+    if (!wallet) return;
+    void refreshBalance();
+    api.balance(wallet).then(b => setLocked(b.locked)).catch(() => {});
+    api.positions(wallet).then(setPos).catch(() => {});
+  };
+  useEffect(refresh, [wallet]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const withdraw = async () => {
+    if (!tradingToken) return;
+    setBusy(true); setMsg(undefined);
+    try {
+      await api.withdraw(tradingToken, toBase(amt));
+      setMsg(`Withdrawal of $${amt} is on its way to your wallet.`);
+      setTimeout(refresh, 1500);
+    } catch (e) { setMsg(errText(e)); }
+    setBusy(false);
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="rounded-2xl border border-gotham/30 p-8" style={{ background: 'linear-gradient(135deg, #00B4A615 0%, #141418 60%)' }}>
+        <div className="flex items-center justify-between">
+          <div className="text-muted text-sm uppercase tracking-wider">Available</div>
+          <button onClick={logout} className="text-muted text-xs hover:text-ivory transition-colors">sign out</button>
         </div>
-      </Modal>
+        <div className="font-display text-5xl font-bold text-ivory mt-2">
+          {balance.toFixed(2)}<span className="text-gotham text-2xl ml-2">USD</span>
+        </div>
+        <div className="text-muted text-xs mt-2">
+          {wallet && short(wallet)}{Number(locked) > 0 ? ` · $${money(locked)} in play` : ''}
+        </div>
+      </div>
+
+      <div className="bg-bg-card border border-border rounded-xl p-6">
+        <h2 className="font-display text-ivory font-semibold mb-3">Cash out</h2>
+        <div className="grid grid-cols-4 gap-2 mb-4">
+          {PRESETS.map(p => (
+            <button key={p} onClick={() => setAmt(p)}
+              className={`py-2 text-sm font-semibold rounded-lg border transition-colors ${amt === p ? 'border-gold text-gold bg-gold/10' : 'border-border text-ivory hover:border-gold'}`}>
+              ${p}
+            </button>
+          ))}
+        </div>
+        <Button onClick={withdraw} disabled={busy} variant="ghost" className="w-full" loading={busy}>
+          {busy ? 'Requesting…' : `Withdraw $${amt}`}
+        </Button>
+        <p className="text-muted text-xs mt-2">Paid to your wallet · network fee netted at withdrawal.</p>
+        {msg && <p className="text-gold text-sm mt-2">{msg}</p>}
+      </div>
+
+      <div className="bg-bg-card border border-border rounded-xl p-6">
+        <h2 className="font-display text-ivory font-semibold mb-3">Open positions</h2>
+        {pos.length ? (
+          <div className="flex flex-col gap-2">
+            {pos.map(p => (
+              <div key={p.market_id} className="flex justify-between border-b border-border pb-2 text-sm last:border-0">
+                <span className="text-muted">{short(p.market_id)}</span>
+                <span className="text-ivory">
+                  {p.yes_shares > 0 && <span className="text-gotham">{p.yes_shares.toFixed(0)} YES</span>}
+                  {p.no_shares > 0 && <span className="text-maxi"> {p.no_shares.toFixed(0)} NO</span>}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted text-sm">No open positions yet. <Link to="/game" className="text-gold">Watch a game →</Link></p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── MiniPay: connect injected wallet → deposit-as-auth ───────────────────────
+function MiniPayFund() {
+  const { setTradingSession } = useAuthStore();
+  const [amt, setAmt] = useState(2);
+  const [step, setStep] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string>();
+
+  const fund = async () => {
+    setBusy(true); setErr(undefined);
+    try {
+      setStep('Connecting…');
+      const account = await connectWallet();
+      const secret = newSecret();
+      setStep('Confirm the deposit in your wallet…');
+      await depositFromWallet(account, BigInt(toBase(amt)), commitmentOf(secret));
+      setStep('Confirming on Celo…');
+      const sess = await pollSession(secret);
+      setTradingSession(sess.token, sess.wallet);
+    } catch (e) { setErr(errText(e)); setStep(undefined); }
+    setBusy(false);
+  };
+
+  return (
+    <FundCard amt={amt} setAmt={setAmt} busy={busy} step={step} err={err}
+      cta={`Deposit $${amt}`} onFund={fund}
+      note="Funds stay in your wallet's control; winnings withdraw back to it." />
+  );
+}
+
+// ── PWA: passkey-owned Safe → deposit-as-auth ────────────────────────────────
+function PasskeyFund({ loginToken }: { loginToken: string }) {
+  const { setTradingSession, registerPasskey, passkeyAvailable } = useAuthStore();
+  const [amt, setAmt] = useState(2);
+  const [step, setStep] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string>();
+
+  const fund = async () => {
+    setBusy(true); setErr(undefined);
+    try {
+      if (!localStorage.getItem('juzz.credId.v1')) {
+        setStep('Create your passkey…');
+        await registerPasskey(); // becomes the Safe owner
+      }
+      setStep('Setting up your wallet…');
+      await api.walletRegister(loginToken);
+      const secret = newSecret();
+      const { steps } = await api.walletDepositPrepare(loginToken, toBase(amt), secret);
+      for (const s of steps) {
+        setStep(s.step === 'approve' ? 'Approve with your passkey…' : 'Deposit with your passkey…');
+        const assertion = await signSafeTxHash(s.safe_tx_hash);
+        await api.walletDepositSubmit(loginToken, s.step, assertion);
+      }
+      setStep('Confirming on Celo…');
+      const sess = await pollSession(secret);
+      setTradingSession(sess.token, sess.wallet);
+    } catch (e) { setErr(errText(e)); setStep(undefined); }
+    setBusy(false);
+  };
+
+  return (
+    <>
+      {!passkeyAvailable() && (
+        <p className="text-red-400 text-sm mb-4">
+          This device doesn't support passkeys. Open juzz in MiniPay, or use a device with a passkey.
+        </p>
+      )}
+      <FundCard amt={amt} setAmt={setAmt} busy={busy} step={step} err={err}
+        cta={`Add $${amt}`} onFund={fund} disabled={!passkeyAvailable()}
+        note="A passkey-owned wallet — no seed phrase. juzz fronts gas; it's netted at withdrawal." />
+      <a href={MINIPAY_ADD_CASH} target="_blank" rel="noopener"
+        className="mt-4 block text-center text-muted text-sm hover:text-ivory transition-colors">
+        Top up with mobile money / card →
+      </a>
+    </>
+  );
+}
+
+function SignInPrompt() {
+  const navigate = useNavigate();
+  return (
+    <div className="bg-bg-card border border-border rounded-xl p-8 text-center">
+      <p className="text-ivory mb-1 font-medium">Sign in to fund your wallet</p>
+      <p className="text-muted text-sm mb-5">Email a code or use a passkey — no deposit needed to sign in.</p>
+      <Button onClick={() => navigate('/login')} className="w-full">Sign in</Button>
+    </div>
+  );
+}
+
+function FundCard({ amt, setAmt, busy, step, err, cta, onFund, note, disabled }: {
+  amt: number; setAmt: (n: number) => void; busy: boolean; step?: string; err?: string;
+  cta: string; onFund: () => void; note: string; disabled?: boolean;
+}) {
+  return (
+    <div className="bg-bg-card border border-border rounded-xl p-6">
+      <h2 className="font-display text-ivory font-semibold mb-3">Add funds</h2>
+      <div className="grid grid-cols-4 gap-2 mb-4">
+        {PRESETS.map(p => (
+          <button key={p} onClick={() => setAmt(p)} disabled={busy}
+            className={`py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-40 ${amt === p ? 'border-gold text-gold bg-gold/10' : 'border-border text-ivory hover:border-gold'}`}>
+            ${p}
+          </button>
+        ))}
+      </div>
+      <Button onClick={onFund} disabled={busy || disabled} loading={busy} className="w-full">{cta}</Button>
+      {step && <p className="text-gold text-sm mt-3">{step}</p>}
+      {err && <p className="text-red-400 text-sm mt-3">{err}</p>}
+      <p className="text-muted text-xs mt-3">{note}</p>
     </div>
   );
 }
