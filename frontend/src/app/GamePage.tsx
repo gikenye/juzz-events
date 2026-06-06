@@ -22,18 +22,16 @@ function resultBanner(result: GameResult | null, whiteName: string, blackName: s
 
 export function GamePage() {
   const { players, turn, capturedPieces, isFinished, result, waiting, connected, start, stop } = useGameStore();
-  const { tickTimer, timeRemaining } = useMarketStore();
+  const bindMarket = useMarketStore(s => s.bind);
+  const unbindMarket = useMarketStore(s => s.unbind);
   const clocks = useLiveClocks();
 
-  // Live game stream: one subscription, auto-rolls to the next game on the same screen.
-  useEffect(() => { start(); return () => stop(); }, [start, stop]);
-
-  // Market countdown (stub until markets are wired).
+  // Live game + market streams: one socket, auto-rolls to the next game on the same screen.
   useEffect(() => {
-    if (timeRemaining <= 0) return;
-    const t = setInterval(() => tickTimer(), 1000);
-    return () => clearInterval(t);
-  }, [tickTimer, timeRemaining]);
+    start();
+    bindMarket();
+    return () => { stop(); unbindMarket(); };
+  }, [start, stop, bindMarket, unbindMarket]);
 
   const whiteName = players.white?.name ?? 'White';
   const blackName = players.black?.name ?? 'Black';

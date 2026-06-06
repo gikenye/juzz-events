@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useMarketStore } from '../../store/marketStore';
+import { useGameStore } from '../../store/gameStore';
 import { probabilitiesToOdds } from '../../lib/odds';
 import type { Outcome } from '../../types';
 
@@ -8,15 +9,22 @@ interface OddsDisplayProps {
   selected: Outcome | null;
 }
 
-const OUTCOMES: { key: Outcome; label: string; shortLabel: string; color: string; bg: string; selectedBg: string }[] = [
-  { key: 'maxi',   label: 'Agent Maxi',   shortLabel: 'Maxi',   color: '#7B4FBF', bg: '#7B4FBF18', selectedBg: '#7B4FBF33' },
-  { key: 'draw',   label: 'Draw',          shortLabel: 'Draw',   color: '#C9A227', bg: '#C9A22718', selectedBg: '#C9A22733' },
-  { key: 'gotham', label: 'Agent Gotham', shortLabel: 'Gotham', color: '#00B4A6', bg: '#00B4A618', selectedBg: '#00B4A633' },
+const OUTCOMES: { key: Outcome; color: string; bg: string; selectedBg: string }[] = [
+  { key: 'maxi',   color: '#7B4FBF', bg: '#7B4FBF18', selectedBg: '#7B4FBF33' },
+  { key: 'draw',   color: '#C9A227', bg: '#C9A22718', selectedBg: '#C9A22733' },
+  { key: 'gotham', color: '#00B4A6', bg: '#00B4A618', selectedBg: '#00B4A633' },
 ];
 
 export function OddsDisplay({ onSelect, selected }: OddsDisplayProps) {
   const { probabilities } = useMarketStore();
+  const players = useGameStore(s => s.players);
   const odds = probabilitiesToOdds(probabilities);
+
+  // Labels track the live game's real agents (maxi=black, gotham=white).
+  const labelOf = (key: Outcome): string =>
+    key === 'maxi' ? (players.black?.name ?? 'Black')
+    : key === 'gotham' ? (players.white?.name ?? 'White')
+    : 'Draw';
 
   return (
     <>
@@ -46,7 +54,7 @@ export function OddsDisplay({ onSelect, selected }: OddsDisplayProps) {
 
         {/* Horizontal buttons */}
         <div className="flex gap-2">
-          {OUTCOMES.map(({ key, shortLabel, color, bg, selectedBg }) => {
+          {OUTCOMES.map(({ key, color, bg, selectedBg }) => {
             const isSelected = selected === key;
             return (
               <motion.button
@@ -59,7 +67,7 @@ export function OddsDisplay({ onSelect, selected }: OddsDisplayProps) {
                 }}
                 whileTap={{ scale: 0.96 }}
               >
-                <span className="text-muted text-[11px] leading-tight mb-1">{shortLabel}</span>
+                <span className="text-muted text-[11px] leading-tight mb-1 truncate max-w-full px-1">{labelOf(key)}</span>
                 <motion.span
                   key={odds[key]}
                   className="font-display font-bold text-lg leading-none"
@@ -77,10 +85,11 @@ export function OddsDisplay({ onSelect, selected }: OddsDisplayProps) {
 
       {/* ── Desktop: vertical stacked cards ── */}
       <div className="hidden lg:flex flex-col gap-2">
-        {OUTCOMES.map(({ key, label, color, selectedBg }) => {
+        {OUTCOMES.map(({ key, color, selectedBg }) => {
           const prob = probabilities[key];
           const odd = odds[key];
           const isSelected = selected === key;
+          const label = labelOf(key);
 
           return (
             <motion.button

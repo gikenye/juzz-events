@@ -1,12 +1,14 @@
 import { useAuthStore } from '../../store/authStore';
 import { useMarketStore } from '../../store/marketStore';
+import { useGameStore } from '../../store/gameStore';
 import { probabilitiesToOdds, potentialPayout } from '../../lib/odds';
 import { Button } from '../ui/Button';
 import { useNavigate } from 'react-router-dom';
 
 export function BetSlip() {
-  const { user, balance, deductBalance } = useAuthStore();
-  const { selectedOutcome, stakeAmount, probabilities, isMarketOpen, betError, setStake, placeBet, bets } = useMarketStore();
+  const { user, balance, tradingToken } = useAuthStore();
+  const { selectedOutcome, stakeAmount, probabilities, isMarketOpen, betError, pending, setStake, placeBet, bets } = useMarketStore();
+  const players = useGameStore(s => s.players);
   const navigate = useNavigate();
 
   const odds = probabilitiesToOdds(probabilities);
@@ -15,10 +17,15 @@ export function BetSlip() {
 
   const handlePlace = () => {
     if (!user) { navigate('/login'); return; }
-    placeBet(balance, deductBalance);
+    if (!tradingToken) { navigate('/wallet'); return; } // sign-in alone isn't a trading session
+    placeBet();
   };
 
-  const outcomeLabel: Record<string, string> = { maxi: 'Agent Maxi', draw: 'Draw', gotham: 'Agent Gotham' };
+  const outcomeLabel: Record<string, string> = {
+    maxi: players.black?.name ?? 'Black',
+    draw: 'Draw',
+    gotham: players.white?.name ?? 'White',
+  };
   const selectedOdds = selectedOutcome ? odds[selectedOutcome] : null;
 
   return (
@@ -97,10 +104,14 @@ export function BetSlip() {
         variant={selectedOutcome === 'maxi' ? 'maxi' : selectedOutcome === 'gotham' ? 'gotham' : 'gold'}
         size="md"
         className="w-full"
-        disabled={!isMarketOpen || !selectedOutcome || !stakeAmount}
+        loading={pending}
+        disabled={!isMarketOpen || !selectedOutcome || !stakeAmount || pending}
         onClick={handlePlace}
       >
-        {!isMarketOpen ? 'Market Closed' : !user ? 'Login to Bet' : 'Confirm Bet'}
+        {!isMarketOpen ? 'Market Closed'
+          : !user ? 'Sign in to bet'
+          : !tradingToken ? 'Add funds to bet'
+          : 'Confirm Bet'}
       </Button>
 
       {/* Active bets */}

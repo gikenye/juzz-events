@@ -2,14 +2,8 @@ import { useMarketStore } from '../../store/marketStore';
 import { OddsDisplay } from './OddsDisplay';
 import { BetSlip } from './BetSlip';
 
-function formatTime(seconds: number) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
 export function MarketPanel() {
-  const { isMarketOpen, timeRemaining, selectedOutcome, selectOutcome } = useMarketStore();
+  const { isMarketOpen, selectedOutcome, selectOutcome } = useMarketStore();
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -21,12 +15,8 @@ export function MarketPanel() {
             ? 'border-green-600 text-green-400 bg-green-900/20'
             : 'border-red-700 text-red-400 bg-red-900/20'
         }`}>
-         
-         
-          {/* <span className={`w-1.5 h-1.5 rounded-full ${isMarketOpen ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`} /> */}
-          <span className={`w-1.5 h-1.5 rounded-full ${isMarketOpen ? '' : ''}`} />
-         
-          {isMarketOpen ? `Time left ${formatTime(timeRemaining)}` : 'Closed'}
+          <span className={`w-1.5 h-1.5 rounded-full ${isMarketOpen ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`} />
+          {isMarketOpen ? 'Live' : 'Closed'}
         </div>
       </div>
 
