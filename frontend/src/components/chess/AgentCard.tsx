@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { formatClock } from '../../lib/useLiveClocks';
 
 const PIECE_UNICODE: Record<string, string> = {
   p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚',
@@ -14,6 +15,7 @@ interface AgentCardProps {
   isActive: boolean;
   capturedPieces?: string[];
   capturedPieceColor?: 'white' | 'black';
+  clockMs?: number;
 }
 
 const configs = {
@@ -112,7 +114,7 @@ function AgentAvatar({ color, isActive }: { color: 'maxi' | 'gotham'; isActive: 
   );
 }
 
-export function AgentCard({ name, color, isActive, capturedPieces = [], capturedPieceColor }: AgentCardProps) {
+export function AgentCard({ name, color, isActive, capturedPieces = [], capturedPieceColor, clockMs }: AgentCardProps) {
   const cfg = configs[color];
 
   const advantage = capturedPieces.reduce((sum, p) => sum + (PIECE_VALUE[p] ?? 0), 0);
@@ -147,6 +149,19 @@ export function AgentCard({ name, color, isActive, capturedPieces = [], captured
         <div className="flex-1" />
       )}
 
+      {/* Server-synced clock */}
+      {clockMs !== undefined && (
+        <span
+          className="shrink-0 font-mono text-sm tabular-nums px-2 py-0.5 rounded-md border"
+          style={{
+            color: isActive ? cfg.accentLight : '#9A9AAF',
+            borderColor: isActive ? cfg.accent : '#2A2A35',
+            background: isActive ? cfg.accent + '14' : 'transparent',
+          }}
+        >
+          {formatClock(clockMs)}
+        </span>
+      )}
     </div>
   );
 }
