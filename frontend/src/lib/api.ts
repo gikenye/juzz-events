@@ -30,6 +30,10 @@ function safeJson(t: string): unknown {
   try { return JSON.parse(t); } catch { return t; }
 }
 
+function bearer(token: string): Record<string, string> {
+  return { authorization: `Bearer ${token}` };
+}
+
 export const api = {
   health: () => req<string>('/health'),
 
@@ -50,6 +54,22 @@ export const api = {
   emailVerify: (email: string, code: string) =>
     req<{ login_token: string; account_id: string }>('/auth/email/verify',
       { method: 'POST', body: JSON.stringify({ email, code }) }),
+
+  // Passkey login (no prior session — the assertion is the proof).
+  passkeyLoginBegin: (email: string) =>
+    req<{ ceremony_id: string; challenge: { publicKey: Record<string, unknown> } }>(
+      '/auth/passkey/login/begin', { method: 'POST', body: JSON.stringify({ email }) }),
+  passkeyLoginFinish: (ceremonyId: string, credential: Record<string, unknown>) =>
+    req<{ login_token: string; account_id: string }>('/auth/passkey/login/finish',
+      { method: 'POST', body: JSON.stringify({ ceremony_id: ceremonyId, credential }) }),
+
+  // Passkey register — adds a credential to the signed-in account (login token required).
+  passkeyRegisterBegin: (loginToken: string) =>
+    req<{ ceremony_id: string; rp_id: string; challenge: { publicKey: Record<string, unknown> } }>(
+      '/auth/passkey/register/begin', { method: 'POST', headers: bearer(loginToken) }),
+  passkeyRegisterFinish: (loginToken: string, ceremonyId: string, credential: Record<string, unknown>) =>
+    req<{ ok: boolean }>('/auth/passkey/register/finish',
+      { method: 'POST', headers: bearer(loginToken), body: JSON.stringify({ ceremony_id: ceremonyId, credential }) }),
 
   // Deposit-as-auth: reveal the deposit secret to mint a trading session bound to the wallet.
   session: (nonce: string) =>
