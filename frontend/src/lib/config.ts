@@ -28,3 +28,9 @@ export const CELOSCAN = 'https://celoscan.io';
 
 // MiniPay native cash-in deep-link (mobile money / card, minimal KYC).
 export const MINIPAY_ADD_CASH = 'https://link.minipay.xyz/add_cash?tokens=USDC';
+
+// Thirdweb onramp (Buy Widget) — buy USDC on Celo with card/crypto by region.
+// Needs a client id from the thirdweb dashboard. Kept as a plain string here (no thirdweb
+// import) so the main bundle stays light; the SDK is code-split into the Buy modal.
+export const THIRDWEB_CLIENT_ID: string = import.meta.env.VITE_THIRDWEB_CLIENT_ID || '';
+export const onrampEnabled = THIRDWEB_CLIENT_ID.length > 0;

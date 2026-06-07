@@ -9,6 +9,7 @@ import { signSafeTxHash } from '../lib/webauthn';
 import { COLLATERAL_DECIMALS, MINIPAY_ADD_CASH } from '../lib/config';
 import type { Position } from '../lib/types';
 import { Button } from '../components/ui/Button';
+import { BuyFunds } from '../components/wallet/BuyFunds';
 
 const PRESETS = [1, 2, 5, 10]; // dollars
 const toBase = (usd: number) => BigInt(Math.round(usd * 10 ** COLLATERAL_DECIMALS)).toString();
@@ -155,9 +156,16 @@ function MiniPayFund() {
   };
 
   return (
-    <FundCard amt={amt} setAmt={setAmt} busy={busy} step={step} err={err}
-      cta={`Deposit $${amt}`} onFund={fund}
-      note="Funds stay in your wallet's control; winnings withdraw back to it." />
+    <div className="flex flex-col gap-3">
+      <FundCard amt={amt} setAmt={setAmt} busy={busy} step={step} err={err}
+        cta={`Deposit $${amt}`} onFund={fund}
+        note="Funds stay in your wallet's control; winnings withdraw back to it." />
+      <BuyFunds />
+      <a href={MINIPAY_ADD_CASH} target="_blank" rel="noopener"
+        className="block text-center text-muted text-sm hover:text-ivory transition-colors">
+        Top up with mobile money →
+      </a>
+    </div>
   );
 }
 
@@ -202,10 +210,7 @@ function PasskeyFund({ loginToken }: { loginToken: string }) {
       <FundCard amt={amt} setAmt={setAmt} busy={busy} step={step} err={err}
         cta={`Add $${amt}`} onFund={fund} disabled={!passkeyAvailable()}
         note="A passkey-owned wallet — no seed phrase. juzz fronts gas; it's netted at withdrawal." />
-      <a href={MINIPAY_ADD_CASH} target="_blank" rel="noopener"
-        className="mt-4 block text-center text-muted text-sm hover:text-ivory transition-colors">
-        Top up with mobile money / card →
-      </a>
+      <div className="mt-4"><BuyFunds loginToken={loginToken} /></div>
     </>
   );
 }
