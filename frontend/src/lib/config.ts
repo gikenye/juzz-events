@@ -16,20 +16,33 @@ export const GAME_TYPE = 'chess' as const;
 export const PROTOCOL_V = 1;
 
 // ── on-chain (Celo mainnet) ─────────────────────────────────────────────────
-// Deposits go to the Vault in USDC (6dp). The off-chain ledger speaks µ$ (also 6dp),
-// so for USDC base units == µ$. The live Vault is single-collateral USDC today;
-// multi-collateral (USDT/USDm) lands once that backend deploy is cut over.
-export const COLLATERAL_DECIMALS = 6;
+// The off-chain ledger speaks canonical micro-dollars (µ$, 6dp). On-chain collateral is
+// any of the three Celo stablecoins, each in its own base units (USDC/USDT 6dp, USDm 18dp).
 export const CHAIN_ID = 42220;
-export const VAULT = '0x2758255F9e373D878b98D31600F904EC3f96e72c';
-export const USDC = '0xcebA9300f2b948710d2653dD7B07f33A8B32118C';
+export const VAULT = '0xb13fF8F40c7dd43FA74EB9A046f2e2a2a5cb0Fe2'; // multi-collateral Vault
 export const CELO_RPC = 'https://forno.celo.org';
 export const CELOSCAN = 'https://celoscan.io';
 
-// MiniPay native cash-in deep-link (mobile money / card, minimal KYC).
-export const MINIPAY_ADD_CASH = 'https://link.minipay.xyz/add_cash?tokens=USDC';
+export type AssetSymbol = 'USDC' | 'USDT' | 'USDm';
+export interface Asset {
+  symbol: AssetSymbol;
+  address: `0x${string}`;
+  decimals: number;
+}
 
-// Thirdweb onramp (Buy Widget) — buy USDC on Celo with card/crypto by region.
+// The supported collateral tokens — used everywhere money moves (deposit, onramp, withdraw).
+export const ASSETS: Asset[] = [
+  { symbol: 'USDC', address: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C', decimals: 6 },
+  { symbol: 'USDT', address: '0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e', decimals: 6 },
+  { symbol: 'USDm', address: '0x765DE816845861e75A25fCA122bb6898B8B1282a', decimals: 18 },
+];
+export const assetBySymbol = (s: AssetSymbol): Asset => ASSETS.find(a => a.symbol === s)!;
+export const USDC = ASSETS[0].address; // default collateral
+
+// MiniPay native cash-in deep-link (mobile money / card, minimal KYC).
+export const MINIPAY_ADD_CASH = 'https://link.minipay.xyz/add_cash?tokens=USDC,USDT';
+
+// Thirdweb onramp (Buy Widget) — buy a Celo stablecoin with card/crypto by region.
 // Needs a client id from the thirdweb dashboard. Kept as a plain string here (no thirdweb
 // import) so the main bundle stays light; the SDK is code-split into the Buy modal.
 export const THIRDWEB_CLIENT_ID: string = import.meta.env.VITE_THIRDWEB_CLIENT_ID || '';

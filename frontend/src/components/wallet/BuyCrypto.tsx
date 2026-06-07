@@ -1,9 +1,9 @@
-// Thirdweb Buy Widget — buy USDC on Celo with card or crypto, delivered to the user's
-// juzz wallet. This module owns ALL thirdweb imports so the (heavy) SDK is code-split
-// into its own lazy chunk and never touches the main bundle. Loaded via React.lazy.
+// Thirdweb Buy Widget — buy a Celo stablecoin (USDC/USDT/USDm) with card or crypto,
+// delivered to the user's juzz wallet. This module owns ALL thirdweb imports so the
+// (heavy) SDK is code-split into its own lazy chunk and never touches the main bundle.
 import { createThirdwebClient, defineChain } from 'thirdweb';
 import { BuyWidget, ThirdwebProvider, darkTheme } from 'thirdweb/react';
-import { THIRDWEB_CLIENT_ID, CHAIN_ID, USDC } from '../../lib/config';
+import { THIRDWEB_CLIENT_ID, CHAIN_ID } from '../../lib/config';
 
 const client = createThirdwebClient({ clientId: THIRDWEB_CLIENT_ID });
 const celo = defineChain(CHAIN_ID);
@@ -31,9 +31,10 @@ const theme = darkTheme({
 });
 
 export default function BuyCrypto({
-  receiverAddress, country, onDone,
+  receiverAddress, tokenAddress, country, onDone,
 }: {
   receiverAddress: string;
+  tokenAddress: string;
   country?: string;
   onDone: () => void;
 }) {
@@ -42,7 +43,7 @@ export default function BuyCrypto({
       <BuyWidget
         client={client}
         chain={celo}
-        tokenAddress={USDC as `0x${string}`}
+        tokenAddress={tokenAddress as `0x${string}`}
         receiverAddress={receiverAddress as `0x${string}`}
         theme={theme}
         showThirdwebBranding={false}

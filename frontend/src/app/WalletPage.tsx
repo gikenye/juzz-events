@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
@@ -6,16 +6,40 @@ import { api, ApiError } from '../lib/api';
 import { newSecret, commitmentOf } from '../lib/secret';
 import { connectWallet, depositFromWallet } from '../lib/celo';
 import { signSafeTxHash } from '../lib/webauthn';
-import { COLLATERAL_DECIMALS, MINIPAY_ADD_CASH } from '../lib/config';
+import { MINIPAY_ADD_CASH } from '../lib/config';
 import type { Position } from '../lib/types';
+import { ASSETS, assetBySymbol, type Asset, type AssetSymbol } from '../lib/config';
 import { Button } from '../components/ui/Button';
 import { BuyFunds } from '../components/wallet/BuyFunds';
 
 const PRESETS = [1, 2, 5, 10]; // dollars
-const toBase = (usd: number) => BigInt(Math.round(usd * 10 ** COLLATERAL_DECIMALS)).toString();
-const money = (micro: string) => (Number(micro) / 10 ** COLLATERAL_DECIMALS).toFixed(2);
+// Ledger amounts (balance, withdraw) are canonical µ$ (6dp); on-chain deposit amounts are
+// in the chosen token's own base units.
+const toMicro = (usd: number) => BigInt(Math.round(usd * 1e6)).toString();
+const toTokenBase = (usd: number, decimals: number) => BigInt(Math.round(usd * 10 ** decimals)).toString();
+const money = (micro: string) => (Number(micro) / 1e6).toFixed(2);
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+const apiAsset = (a: Asset) => a.symbol.toUpperCase() as 'USDC' | 'USDT' | 'USDM';
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+// Stablecoin picker. `only` restricts the choices (e.g. passkey deposit = USDC for now).
+function AssetTabs({ value, onChange, only, disabled }: {
+  value: AssetSymbol; onChange: (s: AssetSymbol) => void; only?: AssetSymbol[]; disabled?: boolean;
+}) {
+  const opts = only ? ASSETS.filter(a => only.includes(a.symbol)) : ASSETS;
+  if (opts.length < 2) return null;
+  return (
+    <div className="flex gap-2 mb-3">
+      {opts.map(a => (
+        <button key={a.symbol} onClick={() => onChange(a.symbol)} disabled={disabled}
+          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-40 ${
+            value === a.symbol ? 'border-gold text-gold bg-gold/10' : 'border-border text-muted hover:text-ivory'}`}>
+          {a.symbol}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // Poll deposit-as-auth: the secret claims a trading session once the deposit confirms.
 async function pollSession(secret: `0x${string}`, tries = 30): Promise<{ token: string; wallet: string }> {
@@ -56,6 +80,7 @@ function WalletHome() {
   const [locked, setLocked] = useState('0');
   const [pos, setPos] = useState<Position[]>([]);
   const [amt, setAmt] = useState(5);
+  const [asset, setAsset] = useState<AssetSymbol>('USDC');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string>();
 
@@ -71,8 +96,8 @@ function WalletHome() {
     if (!tradingToken) return;
     setBusy(true); setMsg(undefined);
     try {
-      await api.withdraw(tradingToken, toBase(amt));
-      setMsg(`Withdrawal of $${amt} is on its way to your wallet.`);
+      await api.withdraw(tradingToken, toMicro(amt), apiAsset(assetBySymbol(asset)));
+      setMsg(`Withdrawal of $${amt} in ${asset} is on its way to your wallet.`);
       setTimeout(refresh, 1500);
     } catch (e) { setMsg(errText(e)); }
     setBusy(false);
@@ -95,6 +120,7 @@ function WalletHome() {
 
       <div className="bg-bg-card border border-border rounded-xl p-6">
         <h2 className="font-display text-ivory font-semibold mb-3">Cash out</h2>
+        <AssetTabs value={asset} onChange={setAsset} disabled={busy} />
         <div className="grid grid-cols-4 gap-2 mb-4">
           {PRESETS.map(p => (
             <button key={p} onClick={() => setAmt(p)}
@@ -104,9 +130,9 @@ function WalletHome() {
           ))}
         </div>
         <Button onClick={withdraw} disabled={busy} variant="ghost" className="w-full" loading={busy}>
-          {busy ? 'Requesting…' : `Withdraw $${amt}`}
+          {busy ? 'Requesting…' : `Withdraw $${amt} in ${asset}`}
         </Button>
-        <p className="text-muted text-xs mt-2">Paid to your wallet · network fee netted at withdrawal.</p>
+        <p className="text-muted text-xs mt-2">Paid to your wallet in {asset} · network fee netted at withdrawal.</p>
         {msg && <p className="text-gold text-sm mt-2">{msg}</p>}
       </div>
 
@@ -136,6 +162,7 @@ function WalletHome() {
 function MiniPayFund() {
   const { setTradingSession } = useAuthStore();
   const [amt, setAmt] = useState(2);
+  const [asset, setAsset] = useState<AssetSymbol>('USDC');
   const [step, setStep] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string>();
@@ -143,11 +170,12 @@ function MiniPayFund() {
   const fund = async () => {
     setBusy(true); setErr(undefined);
     try {
+      const a = assetBySymbol(asset);
       setStep('Connecting…');
       const account = await connectWallet();
       const secret = newSecret();
-      setStep('Confirm the deposit in your wallet…');
-      await depositFromWallet(account, BigInt(toBase(amt)), commitmentOf(secret));
+      setStep(`Confirm the ${asset} deposit in your wallet…`);
+      await depositFromWallet(account, a, BigInt(toTokenBase(amt, a.decimals)), commitmentOf(secret));
       setStep('Confirming on Celo…');
       const sess = await pollSession(secret);
       setTradingSession(sess.token, sess.wallet);
@@ -158,7 +186,8 @@ function MiniPayFund() {
   return (
     <div className="flex flex-col gap-3">
       <FundCard amt={amt} setAmt={setAmt} busy={busy} step={step} err={err}
-        cta={`Deposit $${amt}`} onFund={fund}
+        top={<AssetTabs value={asset} onChange={setAsset} disabled={busy} />}
+        cta={`Deposit $${amt} in ${asset}`} onFund={fund}
         note="Funds stay in your wallet's control; winnings withdraw back to it." />
       <BuyFunds />
       <a href={MINIPAY_ADD_CASH} target="_blank" rel="noopener"
@@ -187,7 +216,9 @@ function PasskeyFund({ loginToken }: { loginToken: string }) {
       setStep('Setting up your wallet…');
       await api.walletRegister(loginToken);
       const secret = newSecret();
-      const { steps } = await api.walletDepositPrepare(loginToken, toBase(amt), secret);
+      // Passkey-Safe deposits are USDC for now (server builds the Safe calldata for the
+      // primary token); USDT/USDm via MiniPay or the onramp until the Safe path is per-asset.
+      const { steps } = await api.walletDepositPrepare(loginToken, toTokenBase(amt, 6), secret);
       for (const s of steps) {
         setStep(s.step === 'approve' ? 'Approve with your passkey…' : 'Deposit with your passkey…');
         const assertion = await signSafeTxHash(s.safe_tx_hash);
@@ -226,13 +257,14 @@ function SignInPrompt() {
   );
 }
 
-function FundCard({ amt, setAmt, busy, step, err, cta, onFund, note, disabled }: {
+function FundCard({ amt, setAmt, busy, step, err, cta, onFund, note, disabled, top }: {
   amt: number; setAmt: (n: number) => void; busy: boolean; step?: string; err?: string;
-  cta: string; onFund: () => void; note: string; disabled?: boolean;
+  cta: string; onFund: () => void; note: string; disabled?: boolean; top?: ReactNode;
 }) {
   return (
     <div className="bg-bg-card border border-border rounded-xl p-6">
       <h2 className="font-display text-ivory font-semibold mb-3">Add funds</h2>
+      {top}
       <div className="grid grid-cols-4 gap-2 mb-4">
         {PRESETS.map(p => (
           <button key={p} onClick={() => setAmt(p)} disabled={busy}

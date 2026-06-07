@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
-import { onrampEnabled } from '../../lib/config';
+import { onrampEnabled, ASSETS, assetBySymbol, type AssetSymbol } from '../../lib/config';
 import { detectCountry } from '../../lib/region';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
@@ -17,6 +17,7 @@ export function BuyFunds({ loginToken }: { loginToken?: string }) {
   const { isMiniPay, wallet } = useAuthStore();
   const [open, setOpen] = useState(false);
   const [receiver, setReceiver] = useState<string>();
+  const [asset, setAsset] = useState<AssetSymbol>('USDC');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string>();
   const country = useMemo(() => detectCountry(), []);
@@ -51,10 +52,22 @@ export function BuyFunds({ loginToken }: { loginToken?: string }) {
       {err && <p className="text-red-400 text-xs mt-2">{err}</p>}
 
       <Modal open={open && !!receiver} onClose={() => setOpen(false)} title="Add funds">
-        <p className="text-muted text-sm mb-1">Funds arrive in your juzz wallet:</p>
+        <div className="flex gap-2 mb-3">
+          {ASSETS.map(a => (
+            <button key={a.symbol} onClick={() => setAsset(a.symbol)}
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                asset === a.symbol ? 'border-gold text-gold bg-gold/10' : 'border-border text-muted hover:text-ivory'}`}>
+              {a.symbol}
+            </button>
+          ))}
+        </div>
+        <p className="text-muted text-sm mb-1">{asset} arrives in your juzz wallet:</p>
         <p className="font-mono text-ivory text-sm mb-4">{receiver && short(receiver)}</p>
         <Suspense fallback={<p className="text-muted text-sm py-6 text-center">Loading…</p>}>
-          {receiver && <BuyCrypto receiverAddress={receiver} country={country} onDone={() => setOpen(false)} />}
+          {receiver && (
+            <BuyCrypto key={asset} receiverAddress={receiver} tokenAddress={assetBySymbol(asset).address}
+              country={country} onDone={() => setOpen(false)} />
+          )}
         </Suspense>
         <p className="text-muted text-[11px] mt-3">
           After it arrives, tap Deposit to move funds into play. Winnings withdraw back to this wallet.
