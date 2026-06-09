@@ -59,7 +59,6 @@ export function BuyFunds({ loginToken }: { loginToken?: string }) {
             </button>
           ))}
         </div>
-        <p className="text-muted text-sm mb-1">{asset} arrives in your juzz wallet:</p>
         <p className="font-mono text-ivory text-sm mb-4">{receiver && short(receiver)}</p>
         <Suspense fallback={<p className="text-muted text-sm py-6 text-center">Loading…</p>}>
           {receiver && (
@@ -67,9 +66,6 @@ export function BuyFunds({ loginToken }: { loginToken?: string }) {
               onDone={() => setOpen(false)} />
           )}
         </Suspense>
-        <p className="text-muted text-[11px] mt-3">
-          After it arrives, tap Deposit to move funds into play. Winnings withdraw back to this wallet.
-        </p>
       </Modal>
     </>
   );

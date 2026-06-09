@@ -132,7 +132,6 @@ function WalletHome() {
         <Button onClick={withdraw} disabled={busy} variant="ghost" className="w-full" loading={busy}>
           {busy ? 'Requesting…' : `Withdraw $${amt} in ${asset}`}
         </Button>
-        <p className="text-muted text-xs mt-2">Paid to your wallet in {asset} · network fee netted at withdrawal.</p>
         {msg && <p className="text-gold text-sm mt-2">{msg}</p>}
       </div>
 
@@ -187,8 +186,7 @@ function MiniPayFund() {
     <div className="flex flex-col gap-3">
       <FundCard amt={amt} setAmt={setAmt} busy={busy} step={step} err={err}
         top={<AssetTabs value={asset} onChange={setAsset} disabled={busy} />}
-        cta={`Deposit $${amt} in ${asset}`} onFund={fund}
-        note="Funds stay in your wallet's control; winnings withdraw back to it." />
+        cta={`Deposit $${amt} in ${asset}`} onFund={fund} />
       <BuyFunds />
       <a href={MINIPAY_ADD_CASH} target="_blank" rel="noopener"
         className="block text-center text-muted text-sm hover:text-ivory transition-colors">
@@ -240,7 +238,7 @@ function PasskeyFund({ loginToken }: { loginToken: string }) {
       )}
       <FundCard amt={amt} setAmt={setAmt} busy={busy} step={step} err={err}
         cta={`Add $${amt}`} onFund={fund} disabled={!passkeyAvailable()}
-        note="A passkey-owned wallet — no seed phrase. juzz fronts gas; it's netted at withdrawal." />
+/>
       <div className="mt-4"><BuyFunds loginToken={loginToken} /></div>
     </>
   );
@@ -257,9 +255,9 @@ function SignInPrompt() {
   );
 }
 
-function FundCard({ amt, setAmt, busy, step, err, cta, onFund, note, disabled, top }: {
+function FundCard({ amt, setAmt, busy, step, err, cta, onFund, disabled, top }: {
   amt: number; setAmt: (n: number) => void; busy: boolean; step?: string; err?: string;
-  cta: string; onFund: () => void; note: string; disabled?: boolean; top?: ReactNode;
+  cta: string; onFund: () => void; disabled?: boolean; top?: ReactNode;
 }) {
   return (
     <div className="bg-bg-card border border-border rounded-xl p-6">
@@ -276,7 +274,6 @@ function FundCard({ amt, setAmt, busy, step, err, cta, onFund, note, disabled, t
       <Button onClick={onFund} disabled={busy || disabled} loading={busy} className="w-full">{cta}</Button>
       {step && <p className="text-gold text-sm mt-3">{step}</p>}
       {err && <p className="text-red-400 text-sm mt-3">{err}</p>}
-      <p className="text-muted text-xs mt-3">{note}</p>
     </div>
   );
 }
