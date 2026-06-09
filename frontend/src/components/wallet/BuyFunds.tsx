@@ -1,6 +1,5 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { onrampEnabled, ASSETS, assetBySymbol, type AssetSymbol } from '../../lib/config';
-import { detectCountry } from '../../lib/region';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
 import { connectWallet } from '../../lib/celo';
@@ -20,7 +19,6 @@ export function BuyFunds({ loginToken }: { loginToken?: string }) {
   const [asset, setAsset] = useState<AssetSymbol>('USDC');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string>();
-  const country = useMemo(() => detectCountry(), []);
 
   if (!onrampEnabled) return null;
 
@@ -66,7 +64,7 @@ export function BuyFunds({ loginToken }: { loginToken?: string }) {
         <Suspense fallback={<p className="text-muted text-sm py-6 text-center">Loading…</p>}>
           {receiver && (
             <BuyCrypto key={asset} receiverAddress={receiver} tokenAddress={assetBySymbol(asset).address}
-              country={country} onDone={() => setOpen(false)} />
+              onDone={() => setOpen(false)} />
           )}
         </Suspense>
         <p className="text-muted text-[11px] mt-3">
