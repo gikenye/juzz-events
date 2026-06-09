@@ -157,6 +157,7 @@ export const useMarketStore = create<MarketState>((set, get) => ({
 
     // $ stake → YES shares at the current price; the engine returns the exact cost.
     const shares = +(stake / Math.max(market.yes_price, 0.02)).toFixed(2);
+    if (shares <= 0) { set({ betError: 'Minimum bet is $0.01.' }); return; }
     set({ pending: true, betError: null });
     socket.trade('buy', market.market_id, shares, 'yes');
   },

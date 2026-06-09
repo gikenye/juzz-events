@@ -7,13 +7,16 @@ import { useNavigate } from 'react-router-dom';
 
 export function BetSlip() {
   const { user, balance, tradingToken } = useAuthStore();
-  const { selectedOutcome, stakeAmount, probabilities, isMarketOpen, betError, pending, setStake, placeBet, bets } = useMarketStore();
+  const { selectedOutcome, stakeAmount, probabilities, isMarketOpen, betError, pending, setStake, placeBet, bets, markets } = useMarketStore();
   const players = useGameStore(s => s.players);
   const navigate = useNavigate();
 
   const odds = probabilitiesToOdds(probabilities);
   const stake = parseFloat(stakeAmount) || 0;
   const payout = selectedOutcome && stake > 0 ? potentialPayout(stake, odds[selectedOutcome]) : 0;
+  const selectedMarket = selectedOutcome ? markets[selectedOutcome] : null;
+  const shares = selectedMarket && stake > 0 ? +(stake / Math.max(selectedMarket.yes_price, 0.02)).toFixed(2) : 0;
+  const tooSmall = !!tradingToken && stake > 0 && stake <= balance && shares <= 0;
 
   const handlePlace = () => {
     if (!user) { navigate('/login'); return; }
@@ -103,8 +106,9 @@ export function BetSlip() {
         )}
       </div>
 
-      {/* Error — client-side balance guard first, so we never fire a doomed bet at the server. */}
+      {/* Client-side guards — prevent doomed bets from ever hitting the server. */}
       {tradingToken && stake > balance && <p className="text-red-400 text-xs">Insufficient balance.</p>}
+      {tooSmall && <p className="text-red-400 text-xs">Minimum bet is $0.01.</p>}
       {betError && <p className="text-red-400 text-xs">{betError}</p>}
 
       <Button
@@ -113,13 +117,14 @@ export function BetSlip() {
         className="w-full"
         loading={pending}
         disabled={!isMarketOpen || !selectedOutcome || !stakeAmount || pending
-          || (!!tradingToken && (stake <= 0 || stake > balance))}
+          || (!!tradingToken && (stake <= 0 || stake > balance || tooSmall))}
         onClick={handlePlace}
       >
         {!isMarketOpen ? 'Market Closed'
           : !user ? 'Sign in to bet'
           : !tradingToken ? 'Add funds to bet'
           : stake > balance ? 'Insufficient balance'
+          : tooSmall ? 'Minimum bet is $0.01'
           : 'Confirm Bet'}
       </Button>
 
