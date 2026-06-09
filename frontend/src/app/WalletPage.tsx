@@ -5,7 +5,6 @@ import { useAuthStore } from '../store/authStore';
 import { api, ApiError } from '../lib/api';
 import { newSecret, commitmentOf } from '../lib/secret';
 import { connectWallet, depositFromWallet } from '../lib/celo';
-import { signSafeTxHash } from '../lib/webauthn';
 import { MINIPAY_ADD_CASH } from '../lib/config';
 import type { Position } from '../lib/types';
 import { ASSETS, assetBySymbol, type Asset, type AssetSymbol } from '../lib/config';
@@ -58,7 +57,7 @@ export function WalletPage() {
   let body;
   if (tradingToken && wallet) body = <WalletHome />;
   else if (isMiniPay) body = <MiniPayFund />;
-  else if (user && loginToken) body = <PasskeyFund loginToken={loginToken} />;
+  else if (user && loginToken) body = <EmailFund loginToken={loginToken} />;
   else body = <SignInPrompt />;
 
   return (
@@ -196,10 +195,11 @@ function MiniPayFund() {
   );
 }
 
-// ── PWA: passkey-owned Safe → deposit-as-auth ────────────────────────────────
-function PasskeyFund({ loginToken }: { loginToken: string }) {
-  const { setTradingSession, registerPasskey, passkeyAvailable } = useAuthStore();
+// ── PWA: juzz-managed Safe → server-signed deposit (email-OTP authorized) ─────
+function EmailFund({ loginToken }: { loginToken: string }) {
+  const { setTradingSession } = useAuthStore();
   const [amt, setAmt] = useState(2);
+  const [asset, setAsset] = useState<AssetSymbol>('USDC');
   const [step, setStep] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string>();
@@ -207,21 +207,9 @@ function PasskeyFund({ loginToken }: { loginToken: string }) {
   const fund = async () => {
     setBusy(true); setErr(undefined);
     try {
-      if (!localStorage.getItem('juzz.credId.v1')) {
-        setStep('Create your passkey…');
-        await registerPasskey(); // becomes the Safe owner
-      }
-      setStep('Setting up your wallet…');
-      await api.walletRegister(loginToken);
       const secret = newSecret();
-      // Passkey-Safe deposits are USDC for now (server builds the Safe calldata for the
-      // primary token); USDT/USDm via MiniPay or the onramp until the Safe path is per-asset.
-      const { steps } = await api.walletDepositPrepare(loginToken, toTokenBase(amt, 6), secret);
-      for (const s of steps) {
-        setStep(s.step === 'approve' ? 'Approve with your passkey…' : 'Deposit with your passkey…');
-        const assertion = await signSafeTxHash(s.safe_tx_hash);
-        await api.walletDepositSubmit(loginToken, s.step, assertion);
-      }
+      setStep('Depositing…');
+      await api.walletDeposit(loginToken, asset, toTokenBase(amt, assetBySymbol(asset).decimals), secret);
       setStep('Confirming on Celo…');
       const sess = await pollSession(secret);
       setTradingSession(sess.token, sess.wallet);
@@ -231,14 +219,9 @@ function PasskeyFund({ loginToken }: { loginToken: string }) {
 
   return (
     <>
-      {!passkeyAvailable() && (
-        <p className="text-red-400 text-sm mb-4">
-          This device doesn't support passkeys. Open juzz in MiniPay, or use a device with a passkey.
-        </p>
-      )}
       <FundCard amt={amt} setAmt={setAmt} busy={busy} step={step} err={err}
-        cta={`Add $${amt}`} onFund={fund} disabled={!passkeyAvailable()}
-/>
+        top={<AssetTabs value={asset} onChange={setAsset} disabled={busy} />}
+        cta={`Add $${amt} in ${asset}`} onFund={fund} />
       <div className="mt-4"><BuyFunds loginToken={loginToken} /></div>
     </>
   );

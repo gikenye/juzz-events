@@ -118,10 +118,3 @@ export interface Position {
   yes_cost: number;
   no_cost: number;
 }
-
-// PWA passkey-Safe deposit step (each is one execTransaction the passkey signs).
-export interface DepositStep {
-  step: 'approve' | 'deposit';
-  safe_tx_hash: string;
-  nonce: number;
-}

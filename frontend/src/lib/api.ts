@@ -1,6 +1,6 @@
 // Typed REST client for the juzz backend. Money in/out is canonical µ$ (6dp strings).
 import { API_URL, GAME_TYPE } from './config';
-import type { GameSummary, MarketSummary, Balance, AssetInfo, Position, DepositStep } from './types';
+import type { GameSummary, MarketSummary, Balance, AssetInfo, Position } from './types';
 
 class ApiError extends Error {
   status: number;
@@ -73,16 +73,14 @@ export const api = {
     req<{ ok: boolean }>('/auth/passkey/register/finish',
       { method: 'POST', headers: bearer(loginToken), body: JSON.stringify({ ceremony_id: ceremonyId, credential }) }),
 
-  // PWA passkey-owned Safe (funding). Login-token gated.
+  // PWA juzz-managed Safe (funding). Login-token (email-OTP) gated; server-signed.
   walletRegister: (loginToken: string) =>
-    req<{ safe: string; owner_signer: string; deployed: boolean }>('/wallet/register',
+    req<{ safe: string; deployed: boolean }>('/wallet/register',
       { method: 'POST', headers: bearer(loginToken) }),
-  walletDepositPrepare: (loginToken: string, amount: string, depositSecret: string) =>
-    req<{ steps: DepositStep[]; commitment: string }>('/wallet/deposit/prepare',
-      { method: 'POST', headers: bearer(loginToken), body: JSON.stringify({ amount, deposit_secret: depositSecret }) }),
-  walletDepositSubmit: (loginToken: string, step: string, assertion: unknown) =>
-    req<{ tx_hash: string; step: string }>('/wallet/deposit/submit',
-      { method: 'POST', headers: bearer(loginToken), body: JSON.stringify({ step, assertion }) }),
+  walletDeposit: (loginToken: string, asset: string, amount: string, depositSecret: string) =>
+    req<{ commitment: string }>('/wallet/deposit',
+      { method: 'POST', headers: bearer(loginToken),
+        body: JSON.stringify({ asset, amount, deposit_secret: depositSecret }) }),
 
   // Deposit-as-auth: reveal the deposit secret to mint a trading session bound to the wallet.
   session: (nonce: string) =>
