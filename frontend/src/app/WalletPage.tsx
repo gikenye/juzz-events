@@ -91,8 +91,8 @@ function WalletHome() {
     api.positions(wallet).then(setPos).catch(() => {});
   };
   useEffect(refresh, [wallet]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Default the cash-out to the full available balance once it loads.
-  useEffect(() => { setAmt(a => (a === 0 ? max : a)); }, [max]);
+  // Default to full balance on first load; clamp down if balance drops below current input.
+  useEffect(() => { setAmt(a => a === 0 ? max : Math.min(a, max)); }, [max]);
 
   const withdraw = async () => {
     if (!tradingToken) return;
@@ -194,6 +194,7 @@ function MiniPayFund() {
 
   return (
     <div className="flex flex-col gap-3">
+      <p className="text-muted text-sm">Deposit once to start trading — your balance is ready instantly after the transaction confirms on Celo.</p>
       <FundCard amt={amt} setAmt={setAmt} busy={busy} step={step} err={err}
         top={<AssetTabs value={asset} onChange={setAsset} disabled={busy} />}
         cta={`Deposit $${amt} in ${asset}`} onFund={fund} />
@@ -260,6 +261,7 @@ function EmailFund({ loginToken }: { loginToken: string }) {
 
   return (
     <div className="flex flex-col gap-4">
+      <p className="text-muted text-sm">Deposit once to start trading — your balance is ready instantly after the transaction confirms on Celo.</p>
       <div className="bg-bg-card border border-border rounded-xl p-5">
         <div className="text-muted text-xs uppercase tracking-wider mb-2">Your deposit address · Celo</div>
         {safe ? (
@@ -281,7 +283,8 @@ function EmailFund({ loginToken }: { loginToken: string }) {
 
       <FundCard amt={amt} setAmt={setAmt} busy={busy || !safe} step={step} err={err}
         top={<AssetTabs value={asset} onChange={setAsset} disabled={busy} />}
-        cta={`Add $${amt} in ${asset}`} onFund={fund} />
+        cta={`Add $${amt} in ${asset}`} onFund={fund}
+        maxAmt={Number(bal[asset] ?? 0n) / 10 ** assetBySymbol(asset).decimals} />
     </div>
   );
 }
@@ -297,9 +300,9 @@ function SignInPrompt() {
   );
 }
 
-function FundCard({ amt, setAmt, busy, step, err, cta, onFund, disabled, top }: {
+function FundCard({ amt, setAmt, busy, step, err, cta, onFund, disabled, top, maxAmt }: {
   amt: number; setAmt: (n: number) => void; busy: boolean; step?: string; err?: string;
-  cta: string; onFund: () => void; disabled?: boolean; top?: ReactNode;
+  cta: string; onFund: () => void; disabled?: boolean; top?: ReactNode; maxAmt?: number;
 }) {
   return (
     <div className="bg-bg-card border border-border rounded-xl p-6">
@@ -313,13 +316,17 @@ function FundCard({ amt, setAmt, busy, step, err, cta, onFund, disabled, top }: 
       </div>
       <div className="grid grid-cols-4 gap-2 mb-4">
         {PRESETS.map(p => (
-          <button key={p} onClick={() => setAmt(p)} disabled={busy}
-            className={`py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-40 ${amt === p ? 'border-gold text-gold bg-gold/10' : 'border-border text-ivory hover:border-gold'}`}>
+          <button key={p} onClick={() => setAmt(p)}
+            disabled={busy || (maxAmt !== undefined && p > maxAmt)}
+            className={`py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${amt === p ? 'border-gold text-gold bg-gold/10' : 'border-border text-ivory hover:border-gold'}`}>
             ${p}
           </button>
         ))}
       </div>
-      <Button onClick={onFund} disabled={busy || disabled} loading={busy} className="w-full">{cta}</Button>
+      <Button onClick={onFund} disabled={busy || disabled || amt <= 0 || (maxAmt !== undefined && amt > maxAmt)}
+        loading={busy} className="w-full">
+        {maxAmt !== undefined && amt > maxAmt ? 'Insufficient balance' : cta}
+      </Button>
       {step && <p className="text-gold text-sm mt-3">{step}</p>}
       {err && <p className="text-red-400 text-sm mt-3">{err}</p>}
     </div>
