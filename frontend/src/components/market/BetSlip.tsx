@@ -50,14 +50,14 @@ export function BetSlip() {
         <span className="text-muted text-xs">${balance.toFixed(2)}</span>
       </div>
 
-      {/* Quick amounts */}
+      {/* Quick amounts — capped to balance so users can't stake what they don't have. */}
       <div className="flex gap-1.5">
         {[1, 2, 5, 10].map(amt => (
           <button
             key={amt}
             onClick={() => setStake(amt.toFixed(2))}
-            disabled={!isMarketOpen}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-40 ${
+            disabled={!isMarketOpen || amt > balance}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
               parseFloat(stakeAmount) === amt
                 ? 'border-gold text-gold bg-gold/10'
                 : 'border-border text-ivory hover:border-gold hover:text-gold'
@@ -66,6 +66,12 @@ export function BetSlip() {
             ${amt}
           </button>
         ))}
+        {balance > 0 && (
+          <button onClick={() => setStake(balance.toFixed(2))} disabled={!isMarketOpen}
+            className="flex-1 py-2 text-sm font-semibold rounded-lg border border-border text-gold hover:border-gold transition-colors disabled:opacity-30">
+            Max
+          </button>
+        )}
       </div>
 
       {/* Input + odds/payout inline */}
@@ -97,7 +103,8 @@ export function BetSlip() {
         )}
       </div>
 
-      {/* Error */}
+      {/* Error — client-side balance guard first, so we never fire a doomed bet at the server. */}
+      {tradingToken && stake > balance && <p className="text-red-400 text-xs">Insufficient balance.</p>}
       {betError && <p className="text-red-400 text-xs">{betError}</p>}
 
       <Button
@@ -105,12 +112,14 @@ export function BetSlip() {
         size="md"
         className="w-full"
         loading={pending}
-        disabled={!isMarketOpen || !selectedOutcome || !stakeAmount || pending}
+        disabled={!isMarketOpen || !selectedOutcome || !stakeAmount || pending
+          || (!!tradingToken && (stake <= 0 || stake > balance))}
         onClick={handlePlace}
       >
         {!isMarketOpen ? 'Market Closed'
           : !user ? 'Sign in to bet'
           : !tradingToken ? 'Add funds to bet'
+          : stake > balance ? 'Insufficient balance'
           : 'Confirm Bet'}
       </Button>
 

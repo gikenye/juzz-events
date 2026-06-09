@@ -9,6 +9,7 @@ import { MINIPAY_ADD_CASH } from '../lib/config';
 import type { Position } from '../lib/types';
 import { ASSETS, assetBySymbol, type Asset, type AssetSymbol } from '../lib/config';
 import { Button } from '../components/ui/Button';
+import { TokenIcon } from '../components/ui/TokenIcon';
 
 const PRESETS = [1, 2, 5, 10]; // dollars
 // Ledger amounts (balance, withdraw) are canonical µ$ (6dp); on-chain deposit amounts are
@@ -19,22 +20,6 @@ const money = (micro: string) => (Number(micro) / 1e6).toFixed(2);
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const apiAsset = (a: Asset) => a.symbol.toUpperCase() as 'USDC' | 'USDT' | 'USDM';
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
-
-// Celo stablecoin marks — brand colours, no external image deps (reliable + instant).
-const TOKEN_MARK: Record<string, { bg: string; fg: string; glyph: string }> = {
-  USDC: { bg: '#2775CA', fg: '#fff', glyph: '$' },   // Circle blue
-  USDT: { bg: '#26A17B', fg: '#fff', glyph: '₮' },   // Tether green
-  USDm: { bg: '#FCFF52', fg: '#000', glyph: 'm' },   // Celo yellow
-};
-function TokenIcon({ symbol, size = 18 }: { symbol: string; size?: number }) {
-  const m = TOKEN_MARK[symbol] ?? { bg: '#5b5b6b', fg: '#fff', glyph: symbol[0] };
-  return (
-    <span style={{ width: size, height: size, background: m.bg, color: m.fg, fontSize: size * 0.6 }}
-      className="inline-flex items-center justify-center rounded-full font-bold leading-none shrink-0">
-      {m.glyph}
-    </span>
-  );
-}
 
 // Stablecoin picker. `only` restricts the choices.
 function AssetTabs({ value, onChange, only, disabled }: {
@@ -93,10 +78,11 @@ function WalletHome() {
   const { wallet, tradingToken, balance, refreshBalance, logout } = useAuthStore();
   const [locked, setLocked] = useState('0');
   const [pos, setPos] = useState<Position[]>([]);
-  const [amt, setAmt] = useState(5);
+  const [amt, setAmt] = useState(0);
   const [asset, setAsset] = useState<AssetSymbol>('USDC');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string>();
+  const max = Math.floor(balance * 100) / 100; // withdrawable, 2dp floor
 
   const refresh = () => {
     if (!wallet) return;
@@ -105,6 +91,8 @@ function WalletHome() {
     api.positions(wallet).then(setPos).catch(() => {});
   };
   useEffect(refresh, [wallet]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Default the cash-out to the full available balance once it loads.
+  useEffect(() => { setAmt(a => (a === 0 ? max : a)); }, [max]);
 
   const withdraw = async () => {
     if (!tradingToken) return;
@@ -135,16 +123,24 @@ function WalletHome() {
       <div className="bg-bg-card border border-border rounded-xl p-6">
         <h2 className="font-display text-ivory font-semibold mb-3">Cash out</h2>
         <AssetTabs value={asset} onChange={setAsset} disabled={busy} />
+        <div className="flex items-center gap-2 mb-3 bg-bg-base border border-border rounded-lg px-3 py-2 focus-within:border-gold transition-colors">
+          <span className="text-gold text-xl font-semibold">$</span>
+          <input type="number" inputMode="decimal" min={0} step={0.01} value={amt} disabled={busy}
+            onChange={e => setAmt(Math.max(0, Number(e.target.value) || 0))}
+            className="flex-1 bg-transparent text-ivory text-xl font-semibold outline-none w-full disabled:opacity-40" />
+          <button onClick={() => setAmt(max)} disabled={busy || max <= 0}
+            className="text-gold text-xs font-semibold disabled:opacity-40">MAX</button>
+        </div>
         <div className="grid grid-cols-4 gap-2 mb-4">
           {PRESETS.map(p => (
-            <button key={p} onClick={() => setAmt(p)}
-              className={`py-2 text-sm font-semibold rounded-lg border transition-colors ${amt === p ? 'border-gold text-gold bg-gold/10' : 'border-border text-ivory hover:border-gold'}`}>
+            <button key={p} onClick={() => setAmt(p)} disabled={busy || p > max}
+              className={`py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${amt === p ? 'border-gold text-gold bg-gold/10' : 'border-border text-ivory hover:border-gold'}`}>
               ${p}
             </button>
           ))}
         </div>
-        <Button onClick={withdraw} disabled={busy} variant="ghost" className="w-full" loading={busy}>
-          {busy ? 'Requesting…' : `Withdraw $${amt} in ${asset}`}
+        <Button onClick={withdraw} disabled={busy || amt <= 0 || amt > max} variant="ghost" className="w-full" loading={busy}>
+          {busy ? 'Requesting…' : amt > max ? 'Insufficient balance' : `Withdraw $${amt} in ${asset}`}
         </Button>
         {msg && <p className="text-gold text-sm mt-2">{msg}</p>}
       </div>
