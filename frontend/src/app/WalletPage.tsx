@@ -20,7 +20,23 @@ const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const apiAsset = (a: Asset) => a.symbol.toUpperCase() as 'USDC' | 'USDT' | 'USDM';
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-// Stablecoin picker. `only` restricts the choices (e.g. passkey deposit = USDC for now).
+// Celo stablecoin marks — brand colours, no external image deps (reliable + instant).
+const TOKEN_MARK: Record<string, { bg: string; fg: string; glyph: string }> = {
+  USDC: { bg: '#2775CA', fg: '#fff', glyph: '$' },   // Circle blue
+  USDT: { bg: '#26A17B', fg: '#fff', glyph: '₮' },   // Tether green
+  USDm: { bg: '#FCFF52', fg: '#000', glyph: 'm' },   // Celo yellow
+};
+function TokenIcon({ symbol, size = 18 }: { symbol: string; size?: number }) {
+  const m = TOKEN_MARK[symbol] ?? { bg: '#5b5b6b', fg: '#fff', glyph: symbol[0] };
+  return (
+    <span style={{ width: size, height: size, background: m.bg, color: m.fg, fontSize: size * 0.6 }}
+      className="inline-flex items-center justify-center rounded-full font-bold leading-none shrink-0">
+      {m.glyph}
+    </span>
+  );
+}
+
+// Stablecoin picker. `only` restricts the choices.
 function AssetTabs({ value, onChange, only, disabled }: {
   value: AssetSymbol; onChange: (s: AssetSymbol) => void; only?: AssetSymbol[]; disabled?: boolean;
 }) {
@@ -30,9 +46,9 @@ function AssetTabs({ value, onChange, only, disabled }: {
     <div className="flex gap-2 mb-3">
       {opts.map(a => (
         <button key={a.symbol} onClick={() => onChange(a.symbol)} disabled={disabled}
-          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-40 ${
+          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5 ${
             value === a.symbol ? 'border-gold text-gold bg-gold/10' : 'border-border text-muted hover:text-ivory'}`}>
-          {a.symbol}
+          <TokenIcon symbol={a.symbol} size={16} /> {a.symbol}
         </button>
       ))}
     </div>
@@ -209,7 +225,11 @@ function EmailFund({ loginToken }: { loginToken: string }) {
   const loadBalances = async (addr: string) => {
     const entries = await Promise.all(ASSETS.map(async a =>
       [a.symbol, await tokenBalance(addr as `0x${string}`, a.address as `0x${string}`)] as const));
-    setBal(Object.fromEntries(entries));
+    const b = Object.fromEntries(entries);
+    setBal(b);
+    // Default the deposit to whichever token the wallet actually holds.
+    const funded = ASSETS.find(a => (b[a.symbol] ?? 0n) > 0n);
+    if (funded) setAsset(funded.symbol);
   };
   useEffect(() => {
     let live = true;
@@ -254,7 +274,10 @@ function EmailFund({ loginToken }: { loginToken: string }) {
         {safe && (
           <div className="flex gap-4 mt-3 text-xs">
             {ASSETS.map(a => (
-              <span key={a.symbol} className="text-muted">{a.symbol} <span className="text-ivory font-semibold">{balOf(a.symbol)}</span></span>
+              <span key={a.symbol} className="flex items-center gap-1.5">
+                <TokenIcon symbol={a.symbol} size={14} />
+                <span className="text-ivory font-semibold">{balOf(a.symbol)}</span>
+              </span>
             ))}
           </div>
         )}
@@ -286,6 +309,12 @@ function FundCard({ amt, setAmt, busy, step, err, cta, onFund, disabled, top }: 
     <div className="bg-bg-card border border-border rounded-xl p-6">
       <h2 className="font-display text-ivory font-semibold mb-3">Add funds</h2>
       {top}
+      <div className="flex items-center gap-2 mb-3 bg-bg-base border border-border rounded-lg px-3 py-2 focus-within:border-gold transition-colors">
+        <span className="text-gold text-xl font-semibold">$</span>
+        <input type="number" inputMode="decimal" min={0.01} step={0.01} value={amt} disabled={busy}
+          onChange={e => setAmt(Math.max(0, Number(e.target.value) || 0))}
+          className="flex-1 bg-transparent text-ivory text-xl font-semibold outline-none w-full disabled:opacity-40" />
+      </div>
       <div className="grid grid-cols-4 gap-2 mb-4">
         {PRESETS.map(p => (
           <button key={p} onClick={() => setAmt(p)} disabled={busy}
