@@ -4,12 +4,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { api, ApiError } from '../lib/api';
 import { newSecret, commitmentOf } from '../lib/secret';
-import { connectWallet, depositFromWallet } from '../lib/celo';
+import { connectWallet, depositFromWallet, tokenBalance } from '../lib/celo';
 import { MINIPAY_ADD_CASH } from '../lib/config';
 import type { Position } from '../lib/types';
 import { ASSETS, assetBySymbol, type Asset, type AssetSymbol } from '../lib/config';
 import { Button } from '../components/ui/Button';
-import { BuyFunds } from '../components/wallet/BuyFunds';
 
 const PRESETS = [1, 2, 5, 10]; // dollars
 // Ledger amounts (balance, withdraw) are canonical µ$ (6dp); on-chain deposit amounts are
@@ -186,7 +185,6 @@ function MiniPayFund() {
       <FundCard amt={amt} setAmt={setAmt} busy={busy} step={step} err={err}
         top={<AssetTabs value={asset} onChange={setAsset} disabled={busy} />}
         cta={`Deposit $${amt} in ${asset}`} onFund={fund} />
-      <BuyFunds />
       <a href={MINIPAY_ADD_CASH} target="_blank" rel="noopener"
         className="block text-center text-muted text-sm hover:text-ivory transition-colors">
         Top up with mobile money →
@@ -198,11 +196,38 @@ function MiniPayFund() {
 // ── PWA: juzz-managed Safe → server-signed deposit (email-OTP authorized) ─────
 function EmailFund({ loginToken }: { loginToken: string }) {
   const { setTradingSession } = useAuthStore();
+  const [safe, setSafe] = useState<string>();
+  const [bal, setBal] = useState<Record<string, bigint>>({});
+  const [copied, setCopied] = useState(false);
   const [amt, setAmt] = useState(2);
   const [asset, setAsset] = useState<AssetSymbol>('USDC');
   const [step, setStep] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string>();
+
+  // Provision the deposit Safe and read its on-chain token balances.
+  const loadBalances = async (addr: string) => {
+    const entries = await Promise.all(ASSETS.map(async a =>
+      [a.symbol, await tokenBalance(addr as `0x${string}`, a.address as `0x${string}`)] as const));
+    setBal(Object.fromEntries(entries));
+  };
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const { safe } = await api.walletRegister(loginToken);
+        if (!live) return;
+        setSafe(safe);
+        await loadBalances(safe);
+      } catch (e) { if (live) setErr(errText(e)); }
+    })();
+    return () => { live = false; };
+  }, [loginToken]);
+
+  const balOf = (sym: AssetSymbol) =>
+    (Number(bal[sym] ?? 0n) / 10 ** assetBySymbol(sym).decimals).toFixed(2);
+
+  const copy = () => { if (safe) { navigator.clipboard?.writeText(safe); setCopied(true); setTimeout(() => setCopied(false), 1500); } };
 
   const fund = async () => {
     setBusy(true); setErr(undefined);
@@ -218,12 +243,27 @@ function EmailFund({ loginToken }: { loginToken: string }) {
   };
 
   return (
-    <>
-      <FundCard amt={amt} setAmt={setAmt} busy={busy} step={step} err={err}
+    <div className="flex flex-col gap-4">
+      <div className="bg-bg-card border border-border rounded-xl p-5">
+        <div className="text-muted text-xs uppercase tracking-wider mb-2">Your deposit address · Celo</div>
+        {safe ? (
+          <button onClick={copy} className="font-mono text-ivory text-sm break-all text-left hover:text-gold transition-colors">
+            {safe} <span className="text-gold">{copied ? '✓' : '⧉'}</span>
+          </button>
+        ) : <p className="text-muted text-sm">Setting up…</p>}
+        {safe && (
+          <div className="flex gap-4 mt-3 text-xs">
+            {ASSETS.map(a => (
+              <span key={a.symbol} className="text-muted">{a.symbol} <span className="text-ivory font-semibold">{balOf(a.symbol)}</span></span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <FundCard amt={amt} setAmt={setAmt} busy={busy || !safe} step={step} err={err}
         top={<AssetTabs value={asset} onChange={setAsset} disabled={busy} />}
         cta={`Add $${amt} in ${asset}`} onFund={fund} />
-      <div className="mt-4"><BuyFunds loginToken={loginToken} /></div>
-    </>
+    </div>
   );
 }
 
