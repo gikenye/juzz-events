@@ -45,8 +45,5 @@ export const MINIPAY_ADD_CASH = 'https://link.minipay.xyz/add_cash?tokens=USDC,U
 // Thirdweb onramp (Buy Widget) — buy a Celo stablecoin with card/crypto by region.
 // Needs a client id from the thirdweb dashboard. Kept as a plain string here (no thirdweb
 // import) so the main bundle stays light; the SDK is code-split into the Buy modal.
-// Public client id (security is domain-allowlisting on thirdweb's dashboard); override per
-// deploy with VITE_THIRDWEB_CLIENT_ID.
-export const THIRDWEB_CLIENT_ID: string =
-  import.meta.env.VITE_THIRDWEB_CLIENT_ID || 'efc4dfe9081901f6b442c1df79e1c7b0';
+export const THIRDWEB_CLIENT_ID: string = import.meta.env.VITE_THIRDWEB_CLIENT_ID || '';
 export const onrampEnabled = THIRDWEB_CLIENT_ID.length > 0;
