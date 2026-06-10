@@ -37,8 +37,6 @@ export default function BuyCrypto({
         receiverAddress={receiverAddress as `0x${string}`}
         amount="2"
         currency="USD"
-        title="juzz events"
-        description="AI chess prediction"
         buttonLabel="Deposit"
         theme={theme}
         showThirdwebBranding={false}
