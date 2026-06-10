@@ -116,8 +116,15 @@ function AccountHome() {
           <span className="text-muted text-sm">{user?.email ?? 'MiniPay'}</span>
           <button onClick={logout} className="text-muted text-xs hover:text-ivory transition-colors">sign out</button>
         </div>
-        <div className="font-display text-5xl font-bold text-ivory">
-          ${balance.toFixed(2)}
+        <div className="flex items-end gap-2">
+          <div className="font-display text-5xl font-bold text-ivory">
+            ${balance.toFixed(2)}
+          </div>
+          {balance > 0 && fullBalance?.primary_asset && (
+            <span className="mb-1.5 px-2 py-0.5 rounded-full border border-gold/40 bg-gold/10 text-gold text-xs font-semibold">
+              {payoutIn}
+            </span>
+          )}
         </div>
         <div className="text-muted text-xs mt-1">
           available to bet
