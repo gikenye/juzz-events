@@ -94,8 +94,10 @@ export type UserEvent =
   | { type: 'settlement'; settlement_id: string; market_id: string; payout: number; winning_side: boolean | null; ts_ms: number };
 
 export interface Balance {
-  available: string; // µ$ as decimal string
-  locked: string;
+  available:    string; // µ$ as decimal string
+  locked:       string;
+  gas_owed:     string; // relayer gas debt, netted at withdrawal
+  withdrawable: string; // available − gas_owed; the max a user can withdraw
 }
 
 export interface AssetInfo {

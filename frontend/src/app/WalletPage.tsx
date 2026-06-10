@@ -51,17 +51,25 @@ export function WalletPage() {
 
 // ── funded: balance · withdraw · positions ──────────────────────────────────
 function WalletHome() {
-  const { wallet, tradingToken, balance, refreshBalance, logout } = useAuthStore();
-  const [locked, setLocked] = useState('0');
-  const [pos, setPos] = useState<Position[]>([]);
-  const [amt, setAmt] = useState(5);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string>();
+  const { wallet, tradingToken, refreshBalance, logout } = useAuthStore();
+  const [locked, setLocked]         = useState('0');
+  const [gasOwed, setGasOwed]       = useState('0');
+  const [withdrawable, setWithdrawable] = useState(0); // dollars
+  const [pos, setPos]               = useState<Position[]>([]);
+  const [amt, setAmt]               = useState(0);
+  const [busy, setBusy]             = useState(false);
+  const [msg, setMsg]               = useState<string>();
 
   const refresh = () => {
     if (!wallet) return;
     void refreshBalance();
-    api.balance(wallet).then(b => setLocked(b.locked)).catch(() => {});
+    api.balance(wallet).then(b => {
+      setLocked(b.locked);
+      setGasOwed(b.gas_owed ?? '0');
+      const w = Number(b.withdrawable ?? b.available) / 1e6;
+      setWithdrawable(w);
+      setAmt(prev => prev === 0 ? Math.floor(w * 100) / 100 : prev);
+    }).catch(() => {});
     api.positions(wallet).then(setPos).catch(() => {});
   };
   useEffect(refresh, [wallet]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -71,11 +79,14 @@ function WalletHome() {
     setBusy(true); setMsg(undefined);
     try {
       await api.withdraw(tradingToken, toBase(amt));
-      setMsg(`Withdrawal of $${amt} is on its way to your wallet.`);
+      setMsg(`Withdrawal of $${amt.toFixed(2)} is on its way to your wallet.`);
       setTimeout(refresh, 1500);
     } catch (e) { setMsg(errText(e)); }
     setBusy(false);
   };
+
+  const gasOwedDollars = Number(gasOwed) / 1e6;
+  const canWithdraw    = amt > 0 && amt <= withdrawable + 0.001;
 
   return (
     <div className="flex flex-col gap-5">
@@ -85,27 +96,35 @@ function WalletHome() {
           <button onClick={logout} className="text-muted text-xs hover:text-ivory transition-colors">sign out</button>
         </div>
         <div className="font-display text-5xl font-bold text-ivory mt-2">
-          {balance.toFixed(2)}<span className="text-gotham text-2xl ml-2">USD</span>
+          {withdrawable.toFixed(2)}<span className="text-gotham text-2xl ml-2">USD</span>
         </div>
         <div className="text-muted text-xs mt-2">
-          {wallet && short(wallet)}{Number(locked) > 0 ? ` · $${money(locked)} in play` : ''}
+          {wallet && short(wallet)}
+          {Number(locked) > 0 ? ` · $${money(locked)} in play` : ''}
+          {gasOwedDollars > 0 ? ` · $${gasOwedDollars.toFixed(2)} gas repaid at cashout` : ''}
         </div>
       </div>
 
       <div className="bg-bg-card border border-border rounded-xl p-6">
         <h2 className="font-display text-ivory font-semibold mb-3">Cash out</h2>
         <div className="grid grid-cols-4 gap-2 mb-4">
-          {PRESETS.map(p => (
+          {PRESETS.filter(p => p <= withdrawable + 0.001).map(p => (
             <button key={p} onClick={() => setAmt(p)}
               className={`py-2 text-sm font-semibold rounded-lg border transition-colors ${amt === p ? 'border-gold text-gold bg-gold/10' : 'border-border text-ivory hover:border-gold'}`}>
               ${p}
             </button>
           ))}
+          {withdrawable > 0 && (
+            <button onClick={() => setAmt(Math.floor(withdrawable * 100) / 100)}
+              className={`py-2 text-sm font-semibold rounded-lg border transition-colors ${amt === Math.floor(withdrawable * 100) / 100 ? 'border-gold text-gold bg-gold/10' : 'border-border text-ivory hover:border-gold'}`}>
+              MAX
+            </button>
+          )}
         </div>
-        <Button onClick={withdraw} disabled={busy} variant="ghost" className="w-full" loading={busy}>
-          {busy ? 'Requesting…' : `Withdraw $${amt}`}
+        <Button onClick={withdraw} disabled={busy || !canWithdraw} variant="ghost" className="w-full" loading={busy}>
+          {busy ? 'Requesting…' : `Withdraw $${amt > 0 ? amt.toFixed(2) : '—'}`}
         </Button>
-        <p className="text-muted text-xs mt-2">Paid to your wallet · network fee netted at withdrawal.</p>
+        <p className="text-muted text-xs mt-2">Paid to your wallet · network fee netted at cashout.</p>
         {msg && <p className="text-gold text-sm mt-2">{msg}</p>}
       </div>
 
