@@ -1,5 +1,11 @@
 {
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
-  "installCommand": "echo 'skip root install'"
+  "installCommand": "echo 'skip root install'",
+  "rewrites": [
+    { "source": "/agents", "destination": "https://sofiav2.tail4f6cc6.ts.net/agents" },
+    { "source": "/agents/:slug/metadata", "destination": "https://sofiav2.tail4f6cc6.ts.net/agents/:slug/metadata" },
+    { "source": "/agents/:slug/avatar.svg", "destination": "https://sofiav2.tail4f6cc6.ts.net/agents/:slug/avatar.svg" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
