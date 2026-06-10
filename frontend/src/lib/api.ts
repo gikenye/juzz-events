@@ -81,10 +81,21 @@ export const api = {
     req<{ commitment: string }>('/wallet/deposit',
       { method: 'POST', headers: bearer(loginToken),
         body: JSON.stringify({ asset, amount, deposit_secret: depositSecret }) }),
-  // Mint a trading session directly if the Safe already has balance (no on-chain tx).
-  walletSession: (loginToken: string) =>
-    req<{ token: string; wallet: string }>('/wallet/session',
-      { method: 'POST', headers: bearer(loginToken) }),
+  // Mint a trading session from a login token — handles all three server states.
+  async walletSession(loginToken: string): Promise<
+    | { status: 'ready';      token: string; wallet: string }
+    | { status: 'depositing'; wallet: string; retry_after: number }
+    | { status: 'unfunded';   deposit_address: string; wallet: string }
+  > {
+    const res  = await fetch(`${API_URL}/wallet/session`, {
+      method: 'POST', headers: { 'content-type': 'application/json', ...bearer(loginToken) },
+    });
+    const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+    if (res.status === 200) return { status: 'ready',      token: body.token as string, wallet: body.wallet as string };
+    if (res.status === 202) return { status: 'depositing', wallet: body.wallet as string, retry_after: (body.retry_after as number) ?? 15 };
+    if (res.status === 402) return { status: 'unfunded',   deposit_address: (body.deposit_address as string) ?? '', wallet: (body.wallet as string) ?? '' };
+    throw new ApiError(res.status, `HTTP_${res.status}`, JSON.stringify(body));
+  },
 
   // Deposit-as-auth: reveal the deposit secret to mint a trading session bound to the wallet.
   session: (nonce: string) =>

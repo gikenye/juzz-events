@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { api, ApiError } from '../lib/api';
 import { newSecret, commitmentOf } from '../lib/secret';
-import { connectWallet, depositFromWallet, tokenBalance } from '../lib/celo';
+import { connectWallet, depositFromWallet } from '../lib/celo';
 import { MINIPAY_ADD_CASH } from '../lib/config';
 import type { Position } from '../lib/types';
 import { ASSETS, assetBySymbol, type Asset, type AssetSymbol } from '../lib/config';
@@ -12,8 +12,6 @@ import { Button } from '../components/ui/Button';
 import { TokenIcon } from '../components/ui/TokenIcon';
 
 const PRESETS = [1, 2, 5, 10]; // dollars
-// Ledger amounts (balance, withdraw) are canonical µ$ (6dp); on-chain deposit amounts are
-// in the chosen token's own base units.
 const toMicro = (usd: number) => BigInt(Math.round(usd * 1e6)).toString();
 const toTokenBase = (usd: number, decimals: number) => BigInt(Math.round(usd * 10 ** decimals)).toString();
 const money = (micro: string) => (Number(micro) / 1e6).toFixed(2);
@@ -76,18 +74,19 @@ export function WalletPage() {
 // ── funded: balance · withdraw · positions ──────────────────────────────────
 function WalletHome() {
   const { wallet, tradingToken, balance, refreshBalance, logout } = useAuthStore();
-  const [locked, setLocked] = useState('0');
-  const [pos, setPos] = useState<Position[]>([]);
-  const [amt, setAmt] = useState(0);
-  const [asset, setAsset] = useState<AssetSymbol>('USDC');
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string>();
+  const [locked, setLocked]   = useState('0');
+  const [gasOwed, setGasOwed] = useState('0');
+  const [pos, setPos]         = useState<Position[]>([]);
+  const [amt, setAmt]         = useState(0);
+  const [asset, setAsset]     = useState<AssetSymbol>('USDC');
+  const [busy, setBusy]       = useState(false);
+  const [msg, setMsg]         = useState<string>();
   const max = Math.floor(balance * 100) / 100; // withdrawable, 2dp floor
 
   const refresh = () => {
     if (!wallet) return;
     void refreshBalance();
-    api.balance(wallet).then(b => setLocked(b.locked)).catch(() => {});
+    api.balance(wallet).then(b => { setLocked(b.locked); setGasOwed(b.gas_owed ?? '0'); }).catch(() => {});
     api.positions(wallet).then(setPos).catch(() => {});
   };
   useEffect(refresh, [wallet]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -116,7 +115,9 @@ function WalletHome() {
           {balance.toFixed(2)}<span className="text-gotham text-2xl ml-2">USD</span>
         </div>
         <div className="text-muted text-xs mt-2">
-          {wallet && short(wallet)}{Number(locked) > 0 ? ` · $${money(locked)} in play` : ''}
+          {wallet && short(wallet)}
+          {Number(locked) > 0 ? ` · $${money(locked)} in play` : ''}
+          {Number(gasOwed) > 0 ? ` · $${money(gasOwed)} gas repaid at cashout` : ''}
         </div>
       </div>
 
@@ -206,94 +207,64 @@ function MiniPayFund() {
   );
 }
 
-// ── PWA: juzz-managed Safe → server-signed deposit (email-OTP authorized) ─────
+// ── PWA: sign in → POST /wallet/session → trade (no manual deposit step) ──────
 function EmailFund({ loginToken }: { loginToken: string }) {
   const { setTradingSession } = useAuthStore();
-  const [safe, setSafe] = useState<string>();
-  const [bal, setBal] = useState<Record<string, bigint>>({});
-  const [copied, setCopied] = useState(false);
-  const [amt, setAmt] = useState(2);
-  const [asset, setAsset] = useState<AssetSymbol>('USDC');
-  const [step, setStep] = useState<string>();
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string>();
+  type Phase = 'checking' | 'depositing' | 'unfunded' | 'error';
+  const [phase, setPhase]           = useState<Phase>('checking');
+  const [depositAddr, setDepositAddr] = useState<string>();
+  const [copied, setCopied]         = useState(false);
+  const [err, setErr]               = useState<string>();
 
-  // Provision the deposit Safe and read its on-chain token balances.
-  const loadBalances = async (addr: string) => {
-    const entries = await Promise.all(ASSETS.map(async a =>
-      [a.symbol, await tokenBalance(addr as `0x${string}`, a.address as `0x${string}`)] as const));
-    const b = Object.fromEntries(entries);
-    setBal(b);
-    // Default the deposit to whichever token the wallet actually holds.
-    const funded = ASSETS.find(a => (b[a.symbol] ?? 0n) > 0n);
-    if (funded) setAsset(funded.symbol);
-  };
-  useEffect(() => {
-    let live = true;
-    (async () => {
-      try {
-        const { safe } = await api.walletRegister(loginToken);
-        if (!live) return;
-        setSafe(safe);
-        await loadBalances(safe);
-      } catch (e) { if (live) setErr(errText(e)); }
-    })();
-    return () => { live = false; };
-  }, [loginToken]);
-
-  const balOf = (sym: AssetSymbol) =>
-    (Number(bal[sym] ?? 0n) / 10 ** assetBySymbol(sym).decimals).toFixed(2);
-
-  const copy = () => { if (safe) { navigator.clipboard?.writeText(safe); setCopied(true); setTimeout(() => setCopied(false), 1500); } };
-
-  const fund = async () => {
-    setBusy(true); setErr(undefined);
+  const trySession = async () => {
+    setPhase('checking'); setErr(undefined);
     try {
-      // Fast path: if the Safe already has a credited balance, get a session instantly.
-      try {
-        const sess = await api.walletSession(loginToken);
-        setTradingSession(sess.token, sess.wallet);
+      const r = await api.walletSession(loginToken);
+      if (r.status === 'ready') {
+        setTradingSession(r.token, r.wallet);
         return;
-      } catch (e) {
-        if (!(e instanceof ApiError && e.status === 402)) throw e;
-        // 402 = no balance yet, fall through to the on-chain deposit ceremony.
       }
-      const secret = newSecret();
-      setStep('Depositing…');
-      await api.walletDeposit(loginToken, asset, toTokenBase(amt, assetBySymbol(asset).decimals), secret);
-      setStep('Confirming on Celo…');
-      const sess = await pollSession(secret);
-      setTradingSession(sess.token, sess.wallet);
-    } catch (e) { setErr(errText(e)); setStep(undefined); }
-    finally { setBusy(false); }
+      if (r.status === 'depositing') {
+        setPhase('depositing');
+        // Poll until the Goldsky indexer credits the balance.
+        const wait = (r.retry_after ?? 15) * 1000;
+        setTimeout(trySession, wait);
+        return;
+      }
+      // unfunded — show deposit address
+      setDepositAddr(r.deposit_address || r.wallet);
+      setPhase('unfunded');
+    } catch (e) { setErr(errText(e)); setPhase('error'); }
   };
+
+  useEffect(() => { void trySession(); }, [loginToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const copy = () => {
+    if (depositAddr) { navigator.clipboard?.writeText(depositAddr); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+  };
+
+  if (phase === 'checking' || phase === 'depositing') {
+    return (
+      <div className="bg-bg-card border border-border rounded-xl p-8 text-center">
+        <p className="text-muted text-sm">{phase === 'checking' ? 'Checking your account…' : 'Depositing to trading vault…'}</p>
+        <p className="text-muted text-xs mt-2">This takes ~15 seconds</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-muted text-sm">Deposit once to start trading — your balance is ready instantly after the transaction confirms on Celo.</p>
       <div className="bg-bg-card border border-border rounded-xl p-5">
         <div className="text-muted text-xs uppercase tracking-wider mb-2">Your deposit address · Celo</div>
-        {safe ? (
+        {depositAddr ? (
           <button onClick={copy} className="font-mono text-ivory text-sm break-all text-left hover:text-gold transition-colors">
-            {safe} <span className="text-gold">{copied ? '✓' : '⧉'}</span>
+            {depositAddr} <span className="text-gold">{copied ? '✓' : '⧉'}</span>
           </button>
         ) : <p className="text-muted text-sm">Setting up…</p>}
-        {safe && (
-          <div className="flex gap-4 mt-3 text-xs">
-            {ASSETS.map(a => (
-              <span key={a.symbol} className="flex items-center gap-1.5">
-                <TokenIcon symbol={a.symbol} size={14} />
-                <span className="text-ivory font-semibold">{balOf(a.symbol)}</span>
-              </span>
-            ))}
-          </div>
-        )}
+        <p className="text-muted text-xs mt-3">Send USDC, USDT, or USDm on Celo to this address.</p>
       </div>
-
-      <FundCard amt={amt} setAmt={setAmt} busy={busy || !safe} step={step} err={err}
-        top={<AssetTabs value={asset} onChange={setAsset} disabled={busy} />}
-        cta={`Add $${amt} in ${asset}`} onFund={fund}
-        maxAmt={Number(bal[asset] ?? 0n) / 10 ** assetBySymbol(asset).decimals} />
+      {err && <p className="text-red-400 text-sm">{err}</p>}
+      <Button onClick={trySession} variant="ghost" className="w-full">Check again</Button>
     </div>
   );
 }
