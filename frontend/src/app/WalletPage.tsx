@@ -244,9 +244,7 @@ function SendPanel({ sendable, gasOwed, payoutIn, isMiniPay, tradingToken, login
       <div className="py-3 text-center">
         <p className="text-gold font-semibold">On its way ✓</p>
         <p className="text-muted text-xs mt-1.5">
-          {needsDest
-            ? `$${sendUsd} in ${payoutIn} is being sent to ${short(dest)}`
-            : `$${sendUsd} in ${payoutIn} is being sent to your MiniPay wallet.`}
+          {needsDest ? `$${sendUsd} ${payoutIn} → ${short(dest)}` : `$${sendUsd} ${payoutIn} → your MiniPay wallet`}
         </p>
         <button onClick={() => { setPhase('idle'); setCode(''); }}
           className="text-muted text-xs mt-3 hover:text-ivory">Done</button>
@@ -266,24 +264,15 @@ function SendPanel({ sendable, gasOwed, payoutIn, isMiniPay, tradingToken, login
           <span className="text-muted text-xs">${money(gasOwed)} network fee</span>
         )}
       </div>
-      {gasOwed > 0 && (
-        <p className="text-muted text-xs -mt-2">
-          The network fee covered setting up your secure account. It's charged once.
-        </p>
-      )}
-
       {needsDest && phase === 'idle' && (
         <div>
           <label className="text-muted text-xs uppercase tracking-wider">Send to</label>
           <input
             type="text" inputMode="text" autoComplete="off" spellCheck={false}
-            placeholder="0x… Celo address"
+            placeholder="0x… Celo address (MiniPay → Receive)"
             value={dest} onChange={e => setDest(e.target.value)} disabled={busy}
             className="mt-1.5 w-full bg-bg-base border border-border rounded-lg px-3 py-2.5 font-mono text-sm text-ivory outline-none focus:border-gold transition-colors placeholder:text-muted disabled:opacity-40"
           />
-          <p className="text-muted text-xs mt-1.5">
-            Paste the address of your MiniPay or exchange account (MiniPay → Receive).
-          </p>
           {dest.length > 0 && !destOk && <p className="text-red-400 text-xs mt-1">That doesn't look like a Celo address.</p>}
         </div>
       )}
@@ -297,9 +286,7 @@ function SendPanel({ sendable, gasOwed, payoutIn, isMiniPay, tradingToken, login
             value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} disabled={busy}
             className="mt-1.5 w-full bg-bg-base border border-border rounded-lg px-3 py-2.5 text-center tracking-[0.4em] text-lg text-ivory outline-none focus:border-gold transition-colors placeholder:text-muted placeholder:tracking-normal disabled:opacity-40"
           />
-          <p className="text-muted text-xs mt-1.5">
-            We emailed a code to {userEmail}. Enter it to confirm sending to {short(dest)}.
-          </p>
+          <p className="text-muted text-xs mt-1.5">Code sent to {userEmail} · confirms {short(dest)}</p>
           <button onClick={resend} className="text-gold text-xs mt-1 hover:underline">Resend code</button>
         </div>
       )}
@@ -392,7 +379,7 @@ function MiniPayDeposit() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="font-display text-ivory text-2xl font-bold mb-1">Add digital dollars</h1>
-        <p className="text-muted text-sm">Deposit once to start playing. Your balance is ready after the transaction confirms.</p>
+        <p className="text-muted text-sm">Deposit once to start playing.</p>
       </div>
       <div className="bg-bg-card border border-border rounded-xl p-5">
         <MiniPayDepositForm />
@@ -446,7 +433,7 @@ function EmailActivate({ loginToken }: { loginToken: string }) {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="font-display text-ivory text-2xl font-bold mb-1">Add digital dollars</h1>
-        <p className="text-muted text-sm">Buy with a card, or send USDC, USDT or USDm on Celo to your account address.</p>
+        <p className="text-muted text-sm">Buy with a card, or send stablecoins on Celo.</p>
       </div>
 
       <BuyFunds loginToken={loginToken} onPurchased={activate} />

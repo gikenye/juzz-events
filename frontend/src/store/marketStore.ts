@@ -112,9 +112,13 @@ export const useMarketStore = create<MarketState>((set, get) => ({
 
     unsub.push(socket.on('error', (err) => {
       if (!get().pending) return;
+      const insufficient = (err.message || '').includes('insufficient');
+      if (insufficient) void useAuthStore.getState().refreshBalance(); // UI was stale
       set({
         pending: false,
-        betError: err.code === 'WALLET_REQUIRED' ? 'Add funds to place a bet.' : (err.message || 'Trade failed.'),
+        betError: err.code === 'WALLET_REQUIRED' ? 'Add funds to place a bet.'
+          : insufficient ? 'Not enough in your balance.'
+          : (err.message || 'Trade failed.'),
       });
     }));
 
