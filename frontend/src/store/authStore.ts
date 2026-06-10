@@ -87,7 +87,8 @@ export const useAuthStore = create<AuthState>()(
         const wallet = get().wallet;
         if (!wallet) return;
         const b = await api.balance(wallet);
-        set({ balance: Number(b.withdrawable ?? b.available) / 1e6 }); // show what user can actually withdraw
+        // Trading balance = full available amount. Gas debt is shown only at send time.
+        set({ balance: Number(b.available) / 1e6 });
       },
 
       logout() {
