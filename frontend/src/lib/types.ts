@@ -98,6 +98,9 @@ export interface Balance {
   locked:       string;
   gas_owed:     string; // relayer gas debt, netted at withdrawal
   withdrawable: string; // available − gas_owed
+  // The token a withdrawal pays out in. The balance is ONE asset-agnostic number —
+  // never render it as a per-token balance.
+  primary_asset: 'USDC' | 'USDT' | 'USDM';
 }
 
 export interface AssetInfo {

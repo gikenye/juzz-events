@@ -102,10 +102,17 @@ export const api = {
     req<{ token: string; wallet: string }>('/session',
       { method: 'POST', body: JSON.stringify({ nonce }) }),
 
-  // Withdraw juzz-held funds. amount is µ$; asset optional (defaults to primary deposit token).
-  withdraw: (session: string, amount: string, asset?: AssetInfo['symbol']) =>
+  // Withdraw juzz-held funds. amount is µ$; the server pays out in the primary deposit
+  // token. `to` redirects the payout (required for email accounts — their session wallet
+  // is a juzz-managed Safe); redirecting needs the emailed confirmation code `otp`.
+  withdraw: (session: string, amount: string, opts?: { to?: string; otp?: string }) =>
     req<{ withdrawal_id: string; status: string }>('/withdraw',
-      { method: 'POST', body: JSON.stringify({ session, amount, ...(asset ? { asset } : {}) }) }),
+      { method: 'POST', body: JSON.stringify({ session, amount, ...opts }) }),
+
+  // Email the signed-in account a one-time code authorizing an outbound send.
+  confirmCode: (loginToken: string) =>
+    req<{ ok: boolean }>('/wallet/confirm-code',
+      { method: 'POST', headers: bearer(loginToken) }),
 };
 
 export { ApiError };
