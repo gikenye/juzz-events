@@ -6,6 +6,7 @@
 // (see useLiveClocks). On `game_over` the store auto-rolls to the next live chess game
 // on the same screen — no navigation, no per-game URL.
 import { create } from 'zustand';
+import { useAuthStore } from './authStore';
 import { socket } from '../lib/ws';
 import { GAME_TYPE } from '../lib/config';
 import { turnFromFen, uciSquares, capturedFromFen } from '../lib/chessFen';
@@ -82,7 +83,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       }));
       unsub.push(socket.on('event', (ev) => handleEvent(ev, set, get)));
     }
-    socket.connect();
+    // Boot with the persisted trading token — a reload landing here must NOT
+    // demote a signed-in user to spectator (stale $0 balance broke trading).
+    socket.connect(useAuthStore.getState().tradingToken);
     if (socket.getStatus() === 'open' && !get().gameId) socket.listGames();
   },
 

@@ -28,6 +28,7 @@ interface AuthState {
   passkeyAvailable: () => boolean;
   setTradingSession: (token: string, wallet: string) => void;
   refreshBalance: () => Promise<void>;
+  bindSocket: () => void;
   logout: () => void;
 
   // Optimistic local money — placeholder until trading/wallet PRs replace it.
@@ -89,6 +90,20 @@ export const useAuthStore = create<AuthState>()(
         const b = await api.balance(wallet);
         // Trading balance = full available amount. Gas debt is shown only at send time.
         set({ balance: Number(b.available) / 1e6 });
+      },
+
+      bindSocket() {
+        // WS-first balance: refresh on every (re)connect and on settlements,
+        // so the number a bet is checked against is never stale.
+        socket.on('status', (s) => {
+          if (s === 'open' && get().tradingToken) {
+            socket.subscribeUser();
+            void get().refreshBalance();
+          }
+        });
+        socket.on('user_event', (e) => {
+          if (e.type === 'settlement' || e.type === 'fill') void get().refreshBalance();
+        });
       },
 
       logout() {

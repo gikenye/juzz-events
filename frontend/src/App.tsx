@@ -5,6 +5,7 @@ import { HomePage } from './app/HomePage';
 import { GamePage } from './app/GamePage';
 import { LoginPage } from './app/LoginPage';
 import { WalletPage } from './app/WalletPage';
+import { useAuthStore } from './store/authStore';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -13,6 +14,7 @@ function ScrollToTop() {
 }
 
 export default function App() {
+  useEffect(() => { useAuthStore.getState().bindSocket(); }, []);
   return (
     <BrowserRouter>
       <ScrollToTop />
