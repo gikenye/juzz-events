@@ -12,7 +12,7 @@ const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
 // "Buy with card or crypto" → resolves the user's juzz wallet (the receiver), then opens
 // the themed Buy Widget. Hidden entirely until a thirdweb client id is configured.
-export function BuyFunds({ loginToken }: { loginToken?: string }) {
+export function BuyFunds({ loginToken, onPurchased }: { loginToken?: string; onPurchased?: () => void }) {
   const { isMiniPay, wallet } = useAuthStore();
   const [open, setOpen] = useState(false);
   const [receiver, setReceiver] = useState<string>();
@@ -63,7 +63,7 @@ export function BuyFunds({ loginToken }: { loginToken?: string }) {
         <Suspense fallback={<p className="text-muted text-sm py-6 text-center">Loading…</p>}>
           {receiver && (
             <BuyCrypto key={asset} receiverAddress={receiver} tokenAddress={assetBySymbol(asset).address}
-              onDone={() => setOpen(false)} />
+              onDone={() => { setOpen(false); onPurchased?.(); }} />
           )}
         </Suspense>
       </Modal>
