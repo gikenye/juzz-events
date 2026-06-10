@@ -10,10 +10,12 @@ import type { Balance, Position } from '../lib/types';
 import { assetBySymbol, type AssetSymbol } from '../lib/config';
 import { Button } from '../components/ui/Button';
 
-const toMicro = (usd: number) => BigInt(Math.round(usd * 1e6)).toString();
 const toTokenBase = (usd: number, decimals: number) => BigInt(Math.round(usd * 10 ** decimals)).toString();
 const money = (micro: string | number) => (Number(micro) / 1e6).toFixed(2);
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+// Display form of the wire asset symbol (server speaks UPPERCASE, brand is "USDm").
+const assetLabel = (wire: string) => (wire === 'USDM' ? 'USDm' : wire);
+const isAddress = (s: string) => /^0x[0-9a-fA-F]{40}$/.test(s.trim());
 
 // Poll deposit-as-auth for MiniPay: claim a trading session once the deposit confirms.
 async function pollSession(secret: `0x${string}`, tries = 30): Promise<{ token: string; wallet: string }> {
@@ -48,23 +50,20 @@ export function WalletPage() {
 
 // ── Funded account ────────────────────────────────────────────────────────────
 function AccountHome() {
-  const { user, wallet, tradingToken, balance, refreshBalance, logout } = useAuthStore();
+  const { user, wallet, tradingToken, loginToken, isMiniPay, balance, refreshBalance, logout } = useAuthStore();
   const [fullBalance, setFullBalance] = useState<Balance | null>(null);
   const [pos, setPos]                 = useState<Position[]>([]);
-  const [asset, setAsset]             = useState<AssetSymbol>('USDC');
+  const [dest, setDest]               = useState('');
+  const [code, setCode]               = useState('');
+  // idle → (email accounts) code emailed, waiting for it → sent
+  const [phase, setPhase]             = useState<'idle' | 'code' | 'sent'>('idle');
   const [busy, setBusy]               = useState(false);
-  const [sent, setSent]               = useState(false);
   const [err, setErr]                 = useState<string>();
 
   const refresh = () => {
     if (!wallet) return;
     void refreshBalance();
-    api.balance(wallet).then(b => {
-      setFullBalance(b);
-      // Auto-select the asset the user deposited (backed by deposit store)
-      // Default to USDC; server returns primary deposit token in future.
-      setAsset('USDC');
-    }).catch(() => {});
+    api.balance(wallet).then(setFullBalance).catch(() => {});
     api.positions(wallet).then(setPos).catch(() => {});
   };
   useEffect(refresh, [wallet]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -74,16 +73,39 @@ function AccountHome() {
   const sendable  = Math.max(0, available - gasOwed); // µ$
   const sendUsd   = (sendable / 1e6).toFixed(2);
   const hasGasFee = gasOwed > 0;
+  const payoutIn  = assetLabel(fullBalance?.primary_asset ?? 'USDC');
+  // MiniPay: the session wallet IS the user's wallet — money goes straight back to it.
+  // Email accounts: the session wallet is juzz-managed, so a destination is required.
+  const needsDest = !isMiniPay;
+  const destOk    = isAddress(dest);
 
+  const fail = (e: unknown) => { setErr(errText(e)); setBusy(false); };
+
+  // MiniPay: one tap. Email: first tap emails the code, second confirms it.
   const send = async () => {
     if (!tradingToken || sendable <= 0) return;
     setBusy(true); setErr(undefined);
     try {
-      await api.withdraw(tradingToken, sendable.toString(), asset.toUpperCase() as 'USDC' | 'USDT' | 'USDM');
-      setSent(true);
+      if (!needsDest) {
+        await api.withdraw(tradingToken, sendable.toString());
+      } else if (phase === 'idle') {
+        if (!loginToken) throw new Error('Sign in again to send your money.');
+        await api.confirmCode(loginToken);
+        setPhase('code'); setBusy(false);
+        return;
+      } else {
+        await api.withdraw(tradingToken, sendable.toString(), { to: dest.trim(), otp: code.trim() });
+      }
+      setPhase('sent');
       setTimeout(refresh, 2000);
-    } catch (e) { setErr(errText(e)); }
+    } catch (e) { fail(e); return; }
     setBusy(false);
+  };
+
+  const resend = async () => {
+    if (!loginToken) return;
+    setErr(undefined);
+    try { await api.confirmCode(loginToken); } catch (e) { setErr(errText(e)); }
   };
 
   return (
@@ -91,7 +113,7 @@ function AccountHome() {
       {/* Identity + balance */}
       <div className="rounded-2xl border border-gotham/30 p-6" style={{ background: 'linear-gradient(135deg, #00B4A615 0%, #141418 60%)' }}>
         <div className="flex items-center justify-between mb-4">
-          <span className="text-muted text-sm">{user?.email}</span>
+          <span className="text-muted text-sm">{user?.email ?? 'MiniPay'}</span>
           <button onClick={logout} className="text-muted text-xs hover:text-ivory transition-colors">sign out</button>
         </div>
         <div className="font-display text-5xl font-bold text-ivory">
@@ -107,18 +129,22 @@ function AccountHome() {
       <div className="bg-bg-card border border-border rounded-xl p-5">
         <h2 className="font-display text-ivory font-semibold mb-1">Send earnings</h2>
 
-        {sent ? (
+        {phase === 'sent' ? (
           <div className="py-4 text-center">
             <p className="text-gold font-semibold">On its way ✓</p>
-            <p className="text-muted text-xs mt-1">Your digital dollars are being sent to your secure account.</p>
-            <button onClick={() => setSent(false)} className="text-muted text-xs mt-3 hover:text-ivory">Done</button>
+            <p className="text-muted text-xs mt-1">
+              {needsDest
+                ? `$${sendUsd} in ${payoutIn} is being sent to ${dest.slice(0, 6)}…${dest.slice(-4)}`
+                : `$${sendUsd} in ${payoutIn} is being sent to your MiniPay wallet.`}
+            </p>
+            <button onClick={() => { setPhase('idle'); setCode(''); }} className="text-muted text-xs mt-3 hover:text-ivory">Done</button>
           </div>
         ) : (
           <>
-            {/* Amount + fee explanation */}
+            {/* Amount + fee */}
             <div className="flex items-center justify-between py-3 border-b border-border mb-3">
               <div>
-                <div className="text-ivory font-semibold text-lg">${sendUsd}</div>
+                <div className="text-ivory font-semibold text-lg">${sendUsd} <span className="text-muted text-xs font-normal">in {payoutIn}</span></div>
                 <div className="text-muted text-xs">you receive</div>
               </div>
               {hasGasFee && (
@@ -135,19 +161,46 @@ function AccountHome() {
               </p>
             )}
 
-            {/* Stablecoin choice */}
-            <div className="flex gap-2 mb-4">
-              {(['USDC', 'USDT', 'USDM'] as AssetSymbol[]).map(s => (
-                <button key={s} onClick={() => setAsset(s)}
-                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-                    asset === s ? 'border-gold text-gold bg-gold/10' : 'border-border text-muted hover:text-ivory'}`}>
-                  {s}
-                </button>
-              ))}
-            </div>
+            {needsDest && phase === 'idle' && (
+              <div className="mb-4">
+                <label className="text-muted text-xs uppercase tracking-wider">Send to</label>
+                <input
+                  type="text" inputMode="text" autoComplete="off" spellCheck={false}
+                  placeholder="0x… Celo address"
+                  value={dest} onChange={e => setDest(e.target.value)} disabled={busy}
+                  className="mt-1 w-full bg-bg-base border border-border rounded-lg px-3 py-2 font-mono text-sm text-ivory outline-none focus:border-gold transition-colors placeholder:text-muted disabled:opacity-40"
+                />
+                <p className="text-muted text-xs mt-1.5">
+                  Paste the Celo address of your MiniPay or exchange account. Open MiniPay → Receive to copy yours.
+                </p>
+                {dest.length > 0 && !destOk && <p className="text-red-400 text-xs mt-1">That doesn't look like a Celo address.</p>}
+              </div>
+            )}
 
-            <Button onClick={send} disabled={busy || sendable <= 0} loading={busy} className="w-full">
-              {sendable <= 0 ? 'Nothing to send yet' : `Send $${sendUsd} in ${asset}`}
+            {needsDest && phase === 'code' && (
+              <div className="mb-4">
+                <label className="text-muted text-xs uppercase tracking-wider">Confirmation code</label>
+                <input
+                  type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
+                  placeholder="6-digit code"
+                  value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} disabled={busy}
+                  className="mt-1 w-full bg-bg-base border border-border rounded-lg px-3 py-2 text-center tracking-[0.4em] text-lg text-ivory outline-none focus:border-gold transition-colors placeholder:text-muted placeholder:tracking-normal disabled:opacity-40"
+                />
+                <p className="text-muted text-xs mt-1.5">
+                  We emailed a code to {user?.email}. Enter it to confirm sending to {dest.slice(0, 6)}…{dest.slice(-4)}.
+                </p>
+                <button onClick={resend} className="text-gold text-xs mt-1 hover:underline">Resend code</button>
+              </div>
+            )}
+
+            <Button onClick={send} loading={busy} className="w-full"
+              disabled={busy || sendable <= 0
+                || (needsDest && phase === 'idle' && !destOk)
+                || (needsDest && phase === 'code' && code.length !== 6)}>
+              {sendable <= 0 ? 'Nothing to send yet'
+                : !needsDest ? `Send $${sendUsd} to your MiniPay wallet`
+                : phase === 'idle' ? `Send $${sendUsd}`
+                : 'Confirm and send'}
             </Button>
             {err && <p className="text-red-400 text-xs mt-2">{err}</p>}
           </>
@@ -185,7 +238,7 @@ function AccountHome() {
 function MiniPayDeposit() {
   const { setTradingSession } = useAuthStore();
   const [amt, setAmt]   = useState(2);
-  const [asset, setAsset] = useState<AssetSymbol>('USDM');
+  const [asset, setAsset] = useState<AssetSymbol>('USDm');
   const [step, setStep] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [err, setErr]   = useState<string>();
@@ -215,7 +268,7 @@ function MiniPayDeposit() {
 
       <div className="bg-bg-card border border-border rounded-xl p-5">
         <div className="flex gap-2 mb-4">
-          {(['USDM', 'USDC', 'USDT'] as AssetSymbol[]).map(s => (
+          {(['USDm', 'USDC', 'USDT'] as AssetSymbol[]).map(s => (
             <button key={s} onClick={() => setAsset(s)} disabled={busy}
               className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-40 ${
                 asset === s ? 'border-gold text-gold bg-gold/10' : 'border-border text-muted hover:text-ivory'}`}>
