@@ -122,7 +122,7 @@ export function BetSlip() {
       >
         {!isMarketOpen ? 'Market Closed'
           : !user ? 'Sign in to bet'
-          : !tradingToken ? 'Add funds to bet'
+          : !tradingToken ? 'Sign in to bet'
           : stake > balance ? 'Insufficient balance'
           : tooSmall ? 'Minimum bet is $0.01'
           : 'Confirm Bet'}

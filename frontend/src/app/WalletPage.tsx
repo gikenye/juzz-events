@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
@@ -6,46 +6,23 @@ import { api, ApiError } from '../lib/api';
 import { newSecret, commitmentOf } from '../lib/secret';
 import { connectWallet, depositFromWallet } from '../lib/celo';
 import { MINIPAY_ADD_CASH } from '../lib/config';
-import type { Position } from '../lib/types';
-import { ASSETS, assetBySymbol, type Asset, type AssetSymbol } from '../lib/config';
+import type { Balance, Position } from '../lib/types';
+import { assetBySymbol, type AssetSymbol } from '../lib/config';
 import { Button } from '../components/ui/Button';
-import { TokenIcon } from '../components/ui/TokenIcon';
 
-const PRESETS = [1, 2, 5, 10]; // dollars
 const toMicro = (usd: number) => BigInt(Math.round(usd * 1e6)).toString();
 const toTokenBase = (usd: number, decimals: number) => BigInt(Math.round(usd * 10 ** decimals)).toString();
-const money = (micro: string) => (Number(micro) / 1e6).toFixed(2);
-const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
-const apiAsset = (a: Asset) => a.symbol.toUpperCase() as 'USDC' | 'USDT' | 'USDM';
+const money = (micro: string | number) => (Number(micro) / 1e6).toFixed(2);
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-// Stablecoin picker. `only` restricts the choices.
-function AssetTabs({ value, onChange, only, disabled }: {
-  value: AssetSymbol; onChange: (s: AssetSymbol) => void; only?: AssetSymbol[]; disabled?: boolean;
-}) {
-  const opts = only ? ASSETS.filter(a => only.includes(a.symbol)) : ASSETS;
-  if (opts.length < 2) return null;
-  return (
-    <div className="flex gap-2 mb-3">
-      {opts.map(a => (
-        <button key={a.symbol} onClick={() => onChange(a.symbol)} disabled={disabled}
-          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5 ${
-            value === a.symbol ? 'border-gold text-gold bg-gold/10' : 'border-border text-muted hover:text-ivory'}`}>
-          <TokenIcon symbol={a.symbol} size={16} /> {a.symbol}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// Poll deposit-as-auth: the secret claims a trading session once the deposit confirms.
+// Poll deposit-as-auth for MiniPay: claim a trading session once the deposit confirms.
 async function pollSession(secret: `0x${string}`, tries = 30): Promise<{ token: string; wallet: string }> {
   for (let i = 0; i < tries; i++) {
     try { return await api.session(secret); }
     catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
     await new Promise(r => setTimeout(r, 3000));
   }
-  throw new Error('Deposit not yet confirmed — it can take a minute. Check back shortly.');
+  throw new Error('Deposit not yet confirmed — it can take a minute. Tap "Check again" to retry.');
 }
 
 export function WalletPage() {
@@ -53,17 +30,15 @@ export function WalletPage() {
   useEffect(() => { detectMiniPay(); }, [detectMiniPay]);
 
   let body;
-  if (tradingToken && wallet) body = <WalletHome />;
-  else if (isMiniPay) body = <MiniPayFund />;
-  else if (user && loginToken) body = <EmailFund loginToken={loginToken} />;
-  else body = <SignInPrompt />;
+  if (tradingToken && wallet) body = <AccountHome />;
+  else if (isMiniPay)          body = <MiniPayDeposit />;
+  else if (user && loginToken) body = <EmailActivate loginToken={loginToken} />;
+  else                         body = <SignInPrompt />;
 
   return (
     <div className="min-h-screen bg-bg-base">
-      <div className="max-w-2xl mx-auto px-4 py-12">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="font-display text-ivory text-3xl font-bold mb-2">Wallet</h1>
-          <p className="text-muted text-sm mb-8">{user ? user.email : 'Guest'}</p>
+      <div className="max-w-lg mx-auto px-4 py-10">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           {body}
         </motion.div>
       </div>
@@ -71,120 +46,158 @@ export function WalletPage() {
   );
 }
 
-// ── funded: balance · withdraw · positions ──────────────────────────────────
-function WalletHome() {
-  const { wallet, tradingToken, balance, refreshBalance, logout } = useAuthStore();
-  const [locked, setLocked]   = useState('0');
-  const [gasOwed, setGasOwed] = useState('0');
-  const [pos, setPos]         = useState<Position[]>([]);
-  const [amt, setAmt]         = useState(0);
-  const [asset, setAsset]     = useState<AssetSymbol>('USDC');
-  const [busy, setBusy]       = useState(false);
-  const [msg, setMsg]         = useState<string>();
-  const max = Math.floor(balance * 100) / 100; // withdrawable, 2dp floor
+// ── Funded account ────────────────────────────────────────────────────────────
+function AccountHome() {
+  const { user, wallet, tradingToken, balance, refreshBalance, logout } = useAuthStore();
+  const [fullBalance, setFullBalance] = useState<Balance | null>(null);
+  const [pos, setPos]                 = useState<Position[]>([]);
+  const [asset, setAsset]             = useState<AssetSymbol>('USDC');
+  const [busy, setBusy]               = useState(false);
+  const [sent, setSent]               = useState(false);
+  const [err, setErr]                 = useState<string>();
 
   const refresh = () => {
     if (!wallet) return;
     void refreshBalance();
-    api.balance(wallet).then(b => { setLocked(b.locked); setGasOwed(b.gas_owed ?? '0'); }).catch(() => {});
+    api.balance(wallet).then(b => {
+      setFullBalance(b);
+      // Auto-select the asset the user deposited (backed by deposit store)
+      // Default to USDC; server returns primary deposit token in future.
+      setAsset('USDC');
+    }).catch(() => {});
     api.positions(wallet).then(setPos).catch(() => {});
   };
   useEffect(refresh, [wallet]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Default to full balance on first load; clamp down if balance drops below current input.
-  useEffect(() => { setAmt(a => a === 0 ? max : Math.min(a, max)); }, [max]);
 
-  const withdraw = async () => {
-    if (!tradingToken) return;
-    setBusy(true); setMsg(undefined);
+  const gasOwed   = Number(fullBalance?.gas_owed ?? 0);
+  const available = Number(fullBalance?.available ?? 0);
+  const sendable  = Math.max(0, available - gasOwed); // µ$
+  const sendUsd   = (sendable / 1e6).toFixed(2);
+  const hasGasFee = gasOwed > 0;
+
+  const send = async () => {
+    if (!tradingToken || sendable <= 0) return;
+    setBusy(true); setErr(undefined);
     try {
-      await api.withdraw(tradingToken, toMicro(amt), apiAsset(assetBySymbol(asset)));
-      setMsg(`Withdrawal of $${amt} in ${asset} is on its way to your wallet.`);
-      setTimeout(refresh, 1500);
-    } catch (e) { setMsg(errText(e)); }
+      await api.withdraw(tradingToken, sendable.toString(), asset.toUpperCase() as 'USDC' | 'USDT' | 'USDM');
+      setSent(true);
+      setTimeout(refresh, 2000);
+    } catch (e) { setErr(errText(e)); }
     setBusy(false);
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="rounded-2xl border border-gotham/30 p-8" style={{ background: 'linear-gradient(135deg, #00B4A615 0%, #141418 60%)' }}>
-        <div className="flex items-center justify-between">
-          <div className="text-muted text-sm uppercase tracking-wider">Available</div>
+    <div className="flex flex-col gap-4">
+      {/* Identity + balance */}
+      <div className="rounded-2xl border border-gotham/30 p-6" style={{ background: 'linear-gradient(135deg, #00B4A615 0%, #141418 60%)' }}>
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-muted text-sm">{user?.email}</span>
           <button onClick={logout} className="text-muted text-xs hover:text-ivory transition-colors">sign out</button>
         </div>
-        <div className="font-display text-5xl font-bold text-ivory mt-2">
-          {balance.toFixed(2)}<span className="text-gotham text-2xl ml-2">USD</span>
+        <div className="font-display text-5xl font-bold text-ivory">
+          ${balance.toFixed(2)}
         </div>
-        <div className="text-muted text-xs mt-2">
-          {wallet && short(wallet)}
-          {Number(locked) > 0 ? ` · $${money(locked)} in play` : ''}
-          {Number(gasOwed) > 0 ? ` · $${money(gasOwed)} gas repaid at cashout` : ''}
+        <div className="text-muted text-xs mt-1">
+          available to bet
+          {pos.length > 0 && ` · ${pos.length} active bet${pos.length > 1 ? 's' : ''}`}
         </div>
       </div>
 
-      <div className="bg-bg-card border border-border rounded-xl p-6">
-        <h2 className="font-display text-ivory font-semibold mb-3">Cash out</h2>
-        <AssetTabs value={asset} onChange={setAsset} disabled={busy} />
-        <div className="flex items-center gap-2 mb-3 bg-bg-base border border-border rounded-lg px-3 py-2 focus-within:border-gold transition-colors">
-          <span className="text-gold text-xl font-semibold">$</span>
-          <input type="number" inputMode="decimal" min={0} step={0.01} value={amt} disabled={busy}
-            onChange={e => setAmt(Math.max(0, Number(e.target.value) || 0))}
-            className="flex-1 bg-transparent text-ivory text-xl font-semibold outline-none w-full disabled:opacity-40" />
-          <button onClick={() => setAmt(max)} disabled={busy || max <= 0}
-            className="text-gold text-xs font-semibold disabled:opacity-40">MAX</button>
-        </div>
-        <div className="grid grid-cols-4 gap-2 mb-4">
-          {PRESETS.map(p => (
-            <button key={p} onClick={() => setAmt(p)} disabled={busy || p > max}
-              className={`py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${amt === p ? 'border-gold text-gold bg-gold/10' : 'border-border text-ivory hover:border-gold'}`}>
-              ${p}
-            </button>
-          ))}
-        </div>
-        <Button onClick={withdraw} disabled={busy || amt <= 0 || amt > max} variant="ghost" className="w-full" loading={busy}>
-          {busy ? 'Requesting…' : amt > max ? 'Insufficient balance' : `Withdraw $${amt} in ${asset}`}
-        </Button>
-        {msg && <p className="text-gold text-sm mt-2">{msg}</p>}
+      {/* Send earnings */}
+      <div className="bg-bg-card border border-border rounded-xl p-5">
+        <h2 className="font-display text-ivory font-semibold mb-1">Send earnings</h2>
+
+        {sent ? (
+          <div className="py-4 text-center">
+            <p className="text-gold font-semibold">On its way ✓</p>
+            <p className="text-muted text-xs mt-1">Your digital dollars are being sent to your secure account.</p>
+            <button onClick={() => setSent(false)} className="text-muted text-xs mt-3 hover:text-ivory">Done</button>
+          </div>
+        ) : (
+          <>
+            {/* Amount + fee explanation */}
+            <div className="flex items-center justify-between py-3 border-b border-border mb-3">
+              <div>
+                <div className="text-ivory font-semibold text-lg">${sendUsd}</div>
+                <div className="text-muted text-xs">you receive</div>
+              </div>
+              {hasGasFee && (
+                <div className="text-right">
+                  <div className="text-muted text-sm">${money(gasOwed)}</div>
+                  <div className="text-muted text-xs">network fee</div>
+                </div>
+              )}
+            </div>
+
+            {hasGasFee && (
+              <p className="text-muted text-xs mb-3">
+                The network fee covered setting up your secure account. It's charged once.
+              </p>
+            )}
+
+            {/* Stablecoin choice */}
+            <div className="flex gap-2 mb-4">
+              {(['USDC', 'USDT', 'USDM'] as AssetSymbol[]).map(s => (
+                <button key={s} onClick={() => setAsset(s)}
+                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                    asset === s ? 'border-gold text-gold bg-gold/10' : 'border-border text-muted hover:text-ivory'}`}>
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            <Button onClick={send} disabled={busy || sendable <= 0} loading={busy} className="w-full">
+              {sendable <= 0 ? 'Nothing to send yet' : `Send $${sendUsd} in ${asset}`}
+            </Button>
+            {err && <p className="text-red-400 text-xs mt-2">{err}</p>}
+          </>
+        )}
       </div>
 
-      <div className="bg-bg-card border border-border rounded-xl p-6">
-        <h2 className="font-display text-ivory font-semibold mb-3">Open positions</h2>
-        {pos.length ? (
+      {/* Active bets */}
+      {pos.length > 0 && (
+        <div className="bg-bg-card border border-border rounded-xl p-5">
+          <h2 className="font-display text-ivory font-semibold mb-3">Active bets</h2>
           <div className="flex flex-col gap-2">
             {pos.map(p => (
-              <div key={p.market_id} className="flex justify-between border-b border-border pb-2 text-sm last:border-0">
-                <span className="text-muted">{short(p.market_id)}</span>
+              <div key={p.market_id} className="flex justify-between text-sm border-b border-border pb-2 last:border-0">
+                <span className="text-muted font-mono text-xs">{p.market_id.slice(0, 8)}…</span>
                 <span className="text-ivory">
-                  {p.yes_shares > 0 && <span className="text-gotham">{p.yes_shares.toFixed(0)} YES</span>}
-                  {p.no_shares > 0 && <span className="text-maxi"> {p.no_shares.toFixed(0)} NO</span>}
+                  {p.yes_shares > 0 && <span className="text-gotham mr-2">{p.yes_shares.toFixed(0)} YES</span>}
+                  {p.no_shares  > 0 && <span className="text-maxi">{p.no_shares.toFixed(0)} NO</span>}
                 </span>
               </div>
             ))}
           </div>
-        ) : (
-          <p className="text-muted text-sm">No open positions yet. <Link to="/game" className="text-gold">Watch a game →</Link></p>
-        )}
-      </div>
+        </div>
+      )}
+
+      {pos.length === 0 && sendable <= 0 && (
+        <p className="text-center text-muted text-sm pt-2">
+          No balance yet. <Link to="/game" className="text-gold">Watch a game and place a bet →</Link>
+        </p>
+      )}
     </div>
   );
 }
 
-// ── MiniPay: connect injected wallet → deposit-as-auth ───────────────────────
-function MiniPayFund() {
+// ── MiniPay: one-tap deposit from injected wallet ────────────────────────────
+function MiniPayDeposit() {
   const { setTradingSession } = useAuthStore();
-  const [amt, setAmt] = useState(2);
-  const [asset, setAsset] = useState<AssetSymbol>('USDC');
+  const [amt, setAmt]   = useState(2);
+  const [asset, setAsset] = useState<AssetSymbol>('USDM');
   const [step, setStep] = useState<string>();
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string>();
+  const [err, setErr]   = useState<string>();
 
-  const fund = async () => {
+  const deposit = async () => {
     setBusy(true); setErr(undefined);
     try {
       const a = assetBySymbol(asset);
       setStep('Connecting…');
       const account = await connectWallet();
       const secret = newSecret();
-      setStep(`Confirm the ${asset} deposit in your wallet…`);
+      setStep('Confirm in your wallet…');
       await depositFromWallet(account, a, BigInt(toTokenBase(amt, a.decimals)), commitmentOf(secret));
       setStep('Confirming on Celo…');
       const sess = await pollSession(secret);
@@ -194,11 +207,47 @@ function MiniPayFund() {
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-muted text-sm">Deposit once to start trading — your balance is ready instantly after the transaction confirms on Celo.</p>
-      <FundCard amt={amt} setAmt={setAmt} busy={busy} step={step} err={err}
-        top={<AssetTabs value={asset} onChange={setAsset} disabled={busy} />}
-        cta={`Deposit $${amt} in ${asset}`} onFund={fund} />
+    <div className="flex flex-col gap-4">
+      <div>
+        <h1 className="font-display text-ivory text-2xl font-bold mb-1">Add digital dollars</h1>
+        <p className="text-muted text-sm">Deposit once to start betting. Your balance is ready after the transaction confirms.</p>
+      </div>
+
+      <div className="bg-bg-card border border-border rounded-xl p-5">
+        <div className="flex gap-2 mb-4">
+          {(['USDM', 'USDC', 'USDT'] as AssetSymbol[]).map(s => (
+            <button key={s} onClick={() => setAsset(s)} disabled={busy}
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-40 ${
+                asset === s ? 'border-gold text-gold bg-gold/10' : 'border-border text-muted hover:text-ivory'}`}>
+              {s}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 mb-4 bg-bg-base border border-border rounded-lg px-3 py-2 focus-within:border-gold transition-colors">
+          <span className="text-gold text-xl font-semibold">$</span>
+          <input type="number" inputMode="decimal" min={1} step={1} value={amt} disabled={busy}
+            onChange={e => setAmt(Math.max(1, Number(e.target.value) || 1))}
+            className="flex-1 bg-transparent text-ivory text-xl font-semibold outline-none w-full disabled:opacity-40" />
+        </div>
+
+        <div className="flex gap-2 mb-4">
+          {[1, 2, 5, 10].map(p => (
+            <button key={p} onClick={() => setAmt(p)} disabled={busy}
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-30 ${
+                amt === p ? 'border-gold text-gold bg-gold/10' : 'border-border text-ivory hover:border-gold'}`}>
+              ${p}
+            </button>
+          ))}
+        </div>
+
+        <Button onClick={deposit} loading={busy} className="w-full">
+          Deposit ${amt} in {asset}
+        </Button>
+        {step && <p className="text-gold text-sm mt-3">{step}</p>}
+        {err  && <p className="text-red-400 text-sm mt-3">{err}</p>}
+      </div>
+
       <a href={MINIPAY_ADD_CASH} target="_blank" rel="noopener"
         className="block text-center text-muted text-sm hover:text-ivory transition-colors">
         Top up with mobile money →
@@ -207,64 +256,66 @@ function MiniPayFund() {
   );
 }
 
-// ── PWA: sign in → POST /wallet/session → trade (no manual deposit step) ──────
-function EmailFund({ loginToken }: { loginToken: string }) {
+// ── Email / PWA: auto-activate from loginToken ────────────────────────────────
+function EmailActivate({ loginToken }: { loginToken: string }) {
   const { setTradingSession } = useAuthStore();
-  type Phase = 'checking' | 'depositing' | 'unfunded' | 'error';
-  const [phase, setPhase]           = useState<Phase>('checking');
-  const [depositAddr, setDepositAddr] = useState<string>();
-  const [copied, setCopied]         = useState(false);
-  const [err, setErr]               = useState<string>();
+  type Phase = 'checking' | 'activating' | 'unfunded' | 'error';
+  const [phase, setPhase]       = useState<Phase>('checking');
+  const [addr, setAddr]         = useState<string>();
+  const [copied, setCopied]     = useState(false);
+  const [err, setErr]           = useState<string>();
 
-  const trySession = async () => {
+  const activate = async () => {
     setPhase('checking'); setErr(undefined);
     try {
       const r = await api.walletSession(loginToken);
-      if (r.status === 'ready') {
-        setTradingSession(r.token, r.wallet);
-        return;
-      }
+      if (r.status === 'ready') { setTradingSession(r.token, r.wallet); return; }
       if (r.status === 'depositing') {
-        setPhase('depositing');
-        // Poll until the Goldsky indexer credits the balance.
-        const wait = (r.retry_after ?? 15) * 1000;
-        setTimeout(trySession, wait);
+        setPhase('activating');
+        setTimeout(activate, (r.retry_after ?? 15) * 1000);
         return;
       }
-      // unfunded — show deposit address
-      setDepositAddr(r.deposit_address || r.wallet);
+      setAddr(r.deposit_address || r.wallet);
       setPhase('unfunded');
     } catch (e) { setErr(errText(e)); setPhase('error'); }
   };
 
-  useEffect(() => { void trySession(); }, [loginToken]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void activate(); }, [loginToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const copy = () => {
-    if (depositAddr) { navigator.clipboard?.writeText(depositAddr); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+    if (addr) { navigator.clipboard?.writeText(addr); setCopied(true); setTimeout(() => setCopied(false), 1500); }
   };
 
-  if (phase === 'checking' || phase === 'depositing') {
+  if (phase === 'checking' || phase === 'activating') {
     return (
-      <div className="bg-bg-card border border-border rounded-xl p-8 text-center">
-        <p className="text-muted text-sm">{phase === 'checking' ? 'Checking your account…' : 'Depositing to trading vault…'}</p>
-        <p className="text-muted text-xs mt-2">This takes ~15 seconds</p>
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-gold border-t-transparent animate-spin" />
+        <p className="text-muted text-sm">
+          {phase === 'checking' ? 'Checking your account…' : 'Setting up your balance…'}
+        </p>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
+      <div>
+        <h1 className="font-display text-ivory text-2xl font-bold mb-1">Add digital dollars</h1>
+        <p className="text-muted text-sm">Send USDC, USDT, or USDm on Celo to your account address below.</p>
+      </div>
+
       <div className="bg-bg-card border border-border rounded-xl p-5">
-        <div className="text-muted text-xs uppercase tracking-wider mb-2">Your deposit address · Celo</div>
-        {depositAddr ? (
-          <button onClick={copy} className="font-mono text-ivory text-sm break-all text-left hover:text-gold transition-colors">
-            {depositAddr} <span className="text-gold">{copied ? '✓' : '⧉'}</span>
+        <p className="text-muted text-xs uppercase tracking-wider mb-2">Your Celo account address</p>
+        {addr ? (
+          <button onClick={copy}
+            className="font-mono text-ivory text-sm break-all text-left w-full hover:text-gold transition-colors leading-relaxed">
+            {addr} <span className="text-gold ml-1">{copied ? '✓ copied' : 'copy'}</span>
           </button>
         ) : <p className="text-muted text-sm">Setting up…</p>}
-        <p className="text-muted text-xs mt-3">Send USDC, USDT, or USDm on Celo to this address.</p>
       </div>
+
       {err && <p className="text-red-400 text-sm">{err}</p>}
-      <Button onClick={trySession} variant="ghost" className="w-full">Check again</Button>
+      <Button onClick={activate} variant="ghost" className="w-full">Check again</Button>
     </div>
   );
 }
@@ -272,43 +323,10 @@ function EmailFund({ loginToken }: { loginToken: string }) {
 function SignInPrompt() {
   const navigate = useNavigate();
   return (
-    <div className="bg-bg-card border border-border rounded-xl p-8 text-center">
-      <p className="text-ivory mb-1 font-medium">Sign in to fund your wallet</p>
-      <p className="text-muted text-sm mb-5">We'll email you a code — no password needed.</p>
-      <Button onClick={() => navigate('/login')} className="w-full">Sign in</Button>
-    </div>
-  );
-}
-
-function FundCard({ amt, setAmt, busy, step, err, cta, onFund, disabled, top, maxAmt }: {
-  amt: number; setAmt: (n: number) => void; busy: boolean; step?: string; err?: string;
-  cta: string; onFund: () => void; disabled?: boolean; top?: ReactNode; maxAmt?: number;
-}) {
-  return (
-    <div className="bg-bg-card border border-border rounded-xl p-6">
-      <h2 className="font-display text-ivory font-semibold mb-3">Add funds</h2>
-      {top}
-      <div className="flex items-center gap-2 mb-3 bg-bg-base border border-border rounded-lg px-3 py-2 focus-within:border-gold transition-colors">
-        <span className="text-gold text-xl font-semibold">$</span>
-        <input type="number" inputMode="decimal" min={0.01} step={0.01} value={amt} disabled={busy}
-          onChange={e => setAmt(Math.max(0, Number(e.target.value) || 0))}
-          className="flex-1 bg-transparent text-ivory text-xl font-semibold outline-none w-full disabled:opacity-40" />
-      </div>
-      <div className="grid grid-cols-4 gap-2 mb-4">
-        {PRESETS.map(p => (
-          <button key={p} onClick={() => setAmt(p)}
-            disabled={busy || (maxAmt !== undefined && p > maxAmt)}
-            className={`py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${amt === p ? 'border-gold text-gold bg-gold/10' : 'border-border text-ivory hover:border-gold'}`}>
-            ${p}
-          </button>
-        ))}
-      </div>
-      <Button onClick={onFund} disabled={busy || disabled || amt <= 0 || (maxAmt !== undefined && amt > maxAmt)}
-        loading={busy} className="w-full">
-        {maxAmt !== undefined && amt > maxAmt ? 'Insufficient balance' : cta}
-      </Button>
-      {step && <p className="text-gold text-sm mt-3">{step}</p>}
-      {err && <p className="text-red-400 text-sm mt-3">{err}</p>}
+    <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+      <h1 className="font-display text-ivory text-2xl font-bold">Your account</h1>
+      <p className="text-muted text-sm max-w-xs">Sign in with your email to see your balance and send earnings.</p>
+      <Button onClick={() => navigate('/login')} className="w-full max-w-xs">Sign in</Button>
     </div>
   );
 }
