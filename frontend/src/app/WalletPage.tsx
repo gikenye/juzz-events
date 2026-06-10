@@ -249,6 +249,15 @@ function EmailFund({ loginToken }: { loginToken: string }) {
   const fund = async () => {
     setBusy(true); setErr(undefined);
     try {
+      // Fast path: if the Safe already has a credited balance, get a session instantly.
+      try {
+        const sess = await api.walletSession(loginToken);
+        setTradingSession(sess.token, sess.wallet);
+        return;
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 402)) throw e;
+        // 402 = no balance yet, fall through to the on-chain deposit ceremony.
+      }
       const secret = newSecret();
       setStep('Depositing…');
       await api.walletDeposit(loginToken, asset, toTokenBase(amt, assetBySymbol(asset).decimals), secret);
@@ -256,7 +265,7 @@ function EmailFund({ loginToken }: { loginToken: string }) {
       const sess = await pollSession(secret);
       setTradingSession(sess.token, sess.wallet);
     } catch (e) { setErr(errText(e)); setStep(undefined); }
-    setBusy(false);
+    finally { setBusy(false); }
   };
 
   return (

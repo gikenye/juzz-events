@@ -12,7 +12,7 @@ export function TokenIcon({ symbol, size = 18 }: { symbol: string; size?: number
   const [broken, setBroken] = useState(false);
   if (!broken) {
     return (
-      <img src={`/tokens/${symbol.toLowerCase()}.svg`} width={size} height={size} alt={symbol}
+      <img src={`/tokens/${symbol.toLowerCase()}.svg`} width={size} height={size} alt=""
         onError={() => setBroken(true)} className="rounded-full shrink-0" />
     );
   }

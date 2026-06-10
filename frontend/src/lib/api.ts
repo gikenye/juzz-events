@@ -81,6 +81,10 @@ export const api = {
     req<{ commitment: string }>('/wallet/deposit',
       { method: 'POST', headers: bearer(loginToken),
         body: JSON.stringify({ asset, amount, deposit_secret: depositSecret }) }),
+  // Mint a trading session directly if the Safe already has balance (no on-chain tx).
+  walletSession: (loginToken: string) =>
+    req<{ token: string; wallet: string }>('/wallet/session',
+      { method: 'POST', headers: bearer(loginToken) }),
 
   // Deposit-as-auth: reveal the deposit secret to mint a trading session bound to the wallet.
   session: (nonce: string) =>
