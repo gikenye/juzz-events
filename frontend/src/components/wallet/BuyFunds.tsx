@@ -49,8 +49,9 @@ export function BuyFunds({ loginToken, onPurchased }: { loginToken?: string; onP
       </button>
       {err && <p className="text-red-400 text-xs mt-2">{err}</p>}
 
-      <Modal open={open && !!receiver} onClose={() => setOpen(false)} title="Add funds">
-        <div className="flex gap-2 mb-3">
+      <Modal open={open && !!receiver} onClose={() => setOpen(false)} title="Add money">
+        {/* The widget is the modal's single subject; our chrome stays out of its way. */}
+        <div className="flex gap-2 mb-4">
           {ASSETS.map(a => (
             <button key={a.symbol} onClick={() => setAsset(a.symbol)}
               className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
@@ -59,13 +60,13 @@ export function BuyFunds({ loginToken, onPurchased }: { loginToken?: string; onP
             </button>
           ))}
         </div>
-        <p className="font-mono text-ivory text-sm mb-4">{receiver && short(receiver)}</p>
         <Suspense fallback={<p className="text-muted text-sm py-6 text-center">Loading…</p>}>
           {receiver && (
             <BuyCrypto key={asset} receiverAddress={receiver} tokenAddress={assetBySymbol(asset).address}
               onDone={() => { setOpen(false); onPurchased?.(); }} />
           )}
         </Suspense>
+        <p className="text-muted text-xs mt-3 text-center">to your juzz account · {receiver && short(receiver)}</p>
       </Modal>
     </>
   );
