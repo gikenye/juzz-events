@@ -18,9 +18,11 @@ export function BetSlip() {
   const shares = selectedMarket && stake > 0 ? +(stake / Math.max(selectedMarket.yes_price, 0.02)).toFixed(2) : 0;
   const tooSmall = !!tradingToken && stake > 0 && stake <= balance && shares <= 0;
 
+  const insufficient = !!tradingToken && stake > balance;
   const handlePlace = () => {
     if (!user) { navigate('/login'); return; }
     if (!tradingToken) { navigate('/wallet'); return; } // sign-in alone isn't a trading session
+    if (insufficient) { navigate('/wallet'); return; }  // route to Add money, not a dead end
     placeBet();
   };
 
@@ -107,7 +109,7 @@ export function BetSlip() {
       </div>
 
       {/* Client-side guards — prevent doomed bets from ever hitting the server. */}
-      {tradingToken && stake > balance && <p className="text-red-400 text-xs">Insufficient balance.</p>}
+      {insufficient && <p className="text-red-400 text-xs">Not enough in your balance — add money to place this bet.</p>}
       {tooSmall && <p className="text-red-400 text-xs">Minimum bet is $0.01.</p>}
       {betError && <p className="text-red-400 text-xs">{betError}</p>}
 
@@ -117,13 +119,13 @@ export function BetSlip() {
         className="w-full"
         loading={pending}
         disabled={!isMarketOpen || !selectedOutcome || !stakeAmount || pending
-          || (!!tradingToken && (stake <= 0 || stake > balance || tooSmall))}
+          || (!!tradingToken && !insufficient && (stake <= 0 || tooSmall))}
         onClick={handlePlace}
       >
         {!isMarketOpen ? 'Market Closed'
           : !user ? 'Sign in to bet'
           : !tradingToken ? 'Sign in to bet'
-          : stake > balance ? 'Insufficient balance'
+          : insufficient ? 'Add money to bet'
           : tooSmall ? 'Minimum bet is $0.01'
           : 'Confirm Bet'}
       </Button>

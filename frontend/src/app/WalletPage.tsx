@@ -9,6 +9,7 @@ import { MINIPAY_ADD_CASH } from '../lib/config';
 import type { Balance, Position } from '../lib/types';
 import { assetBySymbol, type AssetSymbol } from '../lib/config';
 import { Button } from '../components/ui/Button';
+import { BuyFunds } from '../components/wallet/BuyFunds';
 
 const toTokenBase = (usd: number, decimals: number) => BigInt(Math.round(usd * 10 ** decimals)).toString();
 const money = (micro: string | number) => (Number(micro) / 1e6).toFixed(2);
@@ -59,6 +60,9 @@ function AccountHome() {
   const [phase, setPhase]             = useState<'idle' | 'code' | 'sent'>('idle');
   const [busy, setBusy]               = useState(false);
   const [err, setErr]                 = useState<string>();
+  const [copied, setCopied]           = useState(false);
+  const [topup, setTopup]             = useState<string>();
+  const [showDeposit, setShowDeposit] = useState(false);
 
   const refresh = () => {
     if (!wallet) return;
@@ -66,7 +70,29 @@ function AccountHome() {
     api.balance(wallet).then(setFullBalance).catch(() => {});
     api.positions(wallet).then(setPos).catch(() => {});
   };
-  useEffect(refresh, [wallet]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Live balance: settlements and top-up sweeps land server-side on their own
+  // schedule, so poll while the page is open instead of only refreshing on mount.
+  useEffect(() => {
+    refresh();
+    const t = setInterval(refresh, 15_000);
+    return () => clearInterval(t);
+  }, [wallet]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Email accounts: any tokens that landed in the Safe while away (e.g. a card
+  // purchase) are only swept into the balance when /wallet/session runs — fire it.
+  const sweep = () => {
+    if (isMiniPay || !loginToken) return;
+    api.walletSession(loginToken).then(r => {
+      if (r.status === 'depositing') setTopup('Adding your new money — it lands in about a minute.');
+    }).catch(() => {});
+  };
+  useEffect(sweep, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const copyAddr = () => {
+    if (!wallet) return;
+    navigator.clipboard?.writeText(wallet);
+    setCopied(true); setTimeout(() => setCopied(false), 1500);
+  };
 
   const gasOwed   = Number(fullBalance?.gas_owed ?? 0);
   const available = Number(fullBalance?.available ?? 0);
@@ -124,6 +150,31 @@ function AccountHome() {
           {pos.length > 0 && ` · ${pos.length} active bet${pos.length > 1 ? 's' : ''}`}
         </div>
       </div>
+
+      {/* Add money — funded users top up too; never a dead end */}
+      <div className="bg-bg-card border border-border rounded-xl p-5">
+        <h2 className="font-display text-ivory font-semibold mb-3">Add money</h2>
+        <BuyFunds loginToken={loginToken ?? undefined}
+          onPurchased={() => { setTopup('Adding your new money — it lands in about a minute.'); sweep(); }} />
+        {!isMiniPay && wallet && (
+          <div className="mt-3">
+            <p className="text-muted text-xs uppercase tracking-wider mb-1">Or send stablecoins on Celo to</p>
+            <button onClick={copyAddr}
+              className="font-mono text-ivory text-xs break-all text-left w-full hover:text-gold transition-colors">
+              {wallet} <span className="text-gold ml-1">{copied ? '✓ copied' : 'copy'}</span>
+            </button>
+            <button onClick={sweep} className="text-gold text-xs mt-2 hover:underline">I've sent it — check now</button>
+          </div>
+        )}
+        {isMiniPay && (
+          <button onClick={() => setShowDeposit(v => !v)}
+            className="mt-3 w-full py-3 rounded-lg border border-border text-ivory text-sm font-medium hover:border-gold transition-colors">
+            {showDeposit ? 'Hide' : 'Deposit from MiniPay'}
+          </button>
+        )}
+        {topup && <p className="text-gold text-xs mt-2">{topup}</p>}
+      </div>
+      {isMiniPay && showDeposit && <MiniPayDeposit />}
 
       {/* Send earnings */}
       <div className="bg-bg-card border border-border rounded-xl p-5">
@@ -356,6 +407,8 @@ function EmailActivate({ loginToken }: { loginToken: string }) {
         <h1 className="font-display text-ivory text-2xl font-bold mb-1">Add digital dollars</h1>
         <p className="text-muted text-sm">Send USDC, USDT, or USDm on Celo to your account address below.</p>
       </div>
+
+      <BuyFunds loginToken={loginToken} onPurchased={activate} />
 
       <div className="bg-bg-card border border-border rounded-xl p-5">
         <p className="text-muted text-xs uppercase tracking-wider mb-2">Your Celo account address</p>
