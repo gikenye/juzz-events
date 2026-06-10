@@ -11,7 +11,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { requestOtp, verifyOtp, loginPasskey, passkeyAvailable, isMiniPay, detectMiniPay } = useAuthStore();
+  const { requestOtp, verifyOtp, isMiniPay, detectMiniPay } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => { detectMiniPay(); }, [detectMiniPay]);
@@ -41,21 +41,6 @@ export function LoginPage() {
       navigate('/game');
     } catch {
       setError('That code is invalid or expired.');
-    } finally { setLoading(false); }
-  };
-
-  const usePasskey = async () => {
-    setError('');
-    if (!validEmail) { setError('Enter your email, then use your passkey.'); return; }
-    setLoading(true);
-    try {
-      await loginPasskey(email);
-      navigate('/game');
-    } catch (err) {
-      const msg = (err as { code?: string }).code === 'HTTP_404'
-        ? 'No passkey for this email — use the email code instead.'
-        : 'Passkey sign-in failed. Use the email code instead.';
-      setError(msg);
     } finally { setLoading(false); }
   };
 
@@ -110,16 +95,6 @@ export function LoginPage() {
                   Email me a code
                 </Button>
 
-                {passkeyAvailable() && (
-                  <button
-                    type="button"
-                    onClick={usePasskey}
-                    disabled={loading}
-                    className="text-muted text-sm hover:text-ivory transition-colors text-center disabled:opacity-50"
-                  >
-                    Use a passkey instead
-                  </button>
-                )}
               </motion.form>
             ) : (
               <motion.form key="otp" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} onSubmit={verify} className="flex flex-col gap-4">

@@ -303,7 +303,7 @@ function SignInPrompt() {
   return (
     <div className="bg-bg-card border border-border rounded-xl p-8 text-center">
       <p className="text-ivory mb-1 font-medium">Sign in to fund your wallet</p>
-      <p className="text-muted text-sm mb-5">Email a code or use a passkey — no deposit needed to sign in.</p>
+      <p className="text-muted text-sm mb-5">We'll email you a code — no password needed.</p>
       <Button onClick={() => navigate('/login')} className="w-full">Sign in</Button>
     </div>
   );
