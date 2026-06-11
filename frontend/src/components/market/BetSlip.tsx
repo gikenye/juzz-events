@@ -1,5 +1,6 @@
 import { useAuthStore } from '../../store/authStore';
 import { useMarketStore } from '../../store/marketStore';
+import { usePositionsStore } from '../../store/positionsStore';
 import { useGameStore } from '../../store/gameStore';
 import { probabilitiesToOdds, potentialPayout } from '../../lib/odds';
 import { Button } from '../ui/Button';
@@ -7,7 +8,8 @@ import { useNavigate } from 'react-router-dom';
 
 export function BetSlip() {
   const { user, balance, tradingToken } = useAuthStore();
-  const { selectedOutcome, stakeAmount, probabilities, isMarketOpen, betError, pending, setStake, placeBet, bets, markets } = useMarketStore();
+  const { selectedOutcome, stakeAmount, probabilities, isMarketOpen, betError, pending, setStake, placeBet, markets } = useMarketStore();
+  const openPositions = usePositionsStore(s => s.open);
   const players = useGameStore(s => s.players);
   const navigate = useNavigate();
 
@@ -130,18 +132,35 @@ export function BetSlip() {
           : 'Confirm Bet'}
       </Button>
 
-      {/* Active bets */}
-      {bets.length > 0 && (
-        <div className="border-t border-border pt-2">
-          <p className="text-muted text-xs mb-1.5">Your bets this round</p>
-          {bets.map(b => (
-            <div key={b.id} className="flex justify-between text-xs text-ivory py-0.5">
-              <span className="capitalize">{outcomeLabel[b.outcome] ?? b.outcome}</span>
-              <span className="text-muted">${b.stake.toFixed(2)} @ ×{b.odds.toFixed(2)}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Live positions — server truth, value moves with the price */}
+      {(() => {
+        const rows = (Object.keys(markets) as Array<keyof typeof markets>).flatMap(k => {
+          const m = markets[k];
+          const p = m && openPositions.find(x => x.market_id === m.market_id);
+          if (!m || !p || p.yes_shares <= 0) return [];
+          const stake = p.yes_shares * p.avg_yes_price;
+          const value = p.yes_shares * m.yes_price;
+          return [{ key: m.market_id, label: outcomeLabel[k as string] ?? k, stake, value }];
+        });
+        if (rows.length === 0) return null;
+        return (
+          <div className="border-t border-border pt-2">
+            <p className="text-muted text-xs mb-1.5">Your predictions · this game</p>
+            {rows.map(r => (
+              <div key={r.key} className="flex items-center justify-between text-xs py-1">
+                <span className="text-ivory capitalize">{r.label}</span>
+                <span className="text-muted">
+                  ${r.stake.toFixed(2)} →{' '}
+                  <span className={`font-semibold tabular-nums transition-colors ${
+                    r.value >= r.stake ? 'text-gotham' : 'text-maxi'}`}>
+                    ${r.value.toFixed(2)}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }

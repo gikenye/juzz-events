@@ -9,6 +9,7 @@ import { MINIPAY_ADD_CASH } from '../lib/config';
 import type { Balance, Position } from '../lib/types';
 import { assetBySymbol, type AssetSymbol } from '../lib/config';
 import { Button } from '../components/ui/Button';
+import { usePositionsStore, type SettledPrediction } from '../store/positionsStore';
 import { BuyFunds } from '../components/wallet/BuyFunds';
 
 const toTokenBase = (usd: number, decimals: number) => BigInt(Math.round(usd * 10 ** decimals)).toString();
@@ -51,7 +52,7 @@ export function WalletPage() {
 }
 
 // ── Funded account: one surface, one decision at a time ──────────────────────
-type PanelKind = 'none' | 'add' | 'send';
+type PanelKind = 'none' | 'add' | 'send' | 'history';
 
 function AccountHome() {
   const { user, wallet, tradingToken, loginToken, isMiniPay, balance, refreshBalance, logout } = useAuthStore();
@@ -124,14 +125,14 @@ function AccountHome() {
       </div>
 
       {/* Action row — segmented, mutually exclusive disclosure */}
-      <div className="grid grid-cols-2 border-t border-border">
-        {([['add', 'Add money'], ['send', 'Send']] as [PanelKind, string][]).map(([p, label]) => (
+      <div className="grid grid-cols-3 border-t border-border">
+        {([['add', 'Add money'], ['send', 'Send'], ['history', 'Predictions']] as [PanelKind, string][]).map(([p, label], idx) => (
           <button key={p} onClick={() => toggle(p)}
             className={`py-3.5 text-sm font-semibold transition-colors ${
               panel === p
                 ? 'text-gold bg-gold/5 shadow-[inset_0_-2px_0_#C9A227]'
                 : 'text-ivory hover:text-gold'
-            } ${p === 'send' ? 'border-l border-border' : ''}`}>
+            } ${idx > 0 ? 'border-l border-border' : ''}`}>
             {label}
           </button>
         ))}
@@ -148,6 +149,8 @@ function AccountHome() {
             <div className="p-5">
               {panel === 'add'
                 ? <AddMoneyPanel onSwept={() => { setTopup('Adding your new money — it lands in about a minute.'); sweep(); }} />
+                : panel === 'history'
+                ? <PredictionsPanel />
                 : <SendPanel
                     sendable={sendable} gasOwed={gasOwed} payoutIn={payoutIn}
                     isMiniPay={isMiniPay} tradingToken={tradingToken} loginToken={loginToken}
@@ -162,6 +165,45 @@ function AccountHome() {
           Nothing here yet. <Link to="/game" className="text-gold">Watch a game →</Link>
         </p>
       )}
+    </div>
+  );
+}
+
+// ── My predictions: settled history, server truth ─────────────────────────────
+const STATE_BADGE: Record<SettledPrediction['state'], { label: string; cls: string }> = {
+  won:      { label: 'Won',      cls: 'text-gold bg-gold/10 border-gold/40' },
+  lost:     { label: 'Lost',     cls: 'text-muted bg-bg-base border-border' },
+  refunded: { label: 'Refunded', cls: 'text-gotham bg-gotham/10 border-gotham/40' },
+};
+
+function PredictionsPanel() {
+  const { settled, hydrated, bind, hydrate } = usePositionsStore();
+  useEffect(() => { bind(); if (!hydrated) void hydrate(); }, [bind, hydrate, hydrated]);
+
+  if (!hydrated) return <p className="text-muted text-sm text-center py-4">Loading…</p>;
+  if (settled.length === 0) {
+    return (
+      <p className="text-muted text-sm text-center py-4">
+        No predictions yet. <Link to="/game" className="text-gold">Watch a game →</Link>
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col">
+      {settled.map(sp => (
+        <div key={sp.settlement_id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0 gap-3">
+          <div className="min-w-0">
+            <p className="text-ivory text-sm truncate">{sp.question ?? 'Prediction'}</p>
+            <p className="text-muted text-xs">{new Date(sp.ts_ms).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {sp.payout > 0 && <span className="text-ivory text-sm tabular-nums">+${sp.payout.toFixed(2)}</span>}
+            <span className={`px-2 py-0.5 rounded-full border text-xs font-semibold ${STATE_BADGE[sp.state].cls}`}>
+              {STATE_BADGE[sp.state].label}
+            </span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

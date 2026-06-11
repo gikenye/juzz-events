@@ -7,6 +7,8 @@ import type { GameResult } from '../lib/types';
 import { ChessBoard } from '../components/chess/ChessBoard';
 import { AgentCard } from '../components/chess/AgentCard';
 import { MarketPanel } from '../components/market/MarketPanel';
+import { SettlementBanner } from '../components/market/SettlementBanner';
+import { usePositionsStore } from '../store/positionsStore';
 
 function resultBanner(result: GameResult | null, whiteName: string, blackName: string): string {
   switch (result) {
@@ -23,6 +25,7 @@ function resultBanner(result: GameResult | null, whiteName: string, blackName: s
 export function GamePage() {
   const { players, turn, capturedPieces, isFinished, result, waiting, connected, start, stop } = useGameStore();
   const bindMarket = useMarketStore(s => s.bind);
+  const bindPositions = usePositionsStore(s => s.bind);
   const unbindMarket = useMarketStore(s => s.unbind);
   const clocks = useLiveClocks();
 
@@ -30,8 +33,9 @@ export function GamePage() {
   useEffect(() => {
     start();
     bindMarket();
+    bindPositions();
     return () => { stop(); unbindMarket(); };
-  }, [start, stop, bindMarket, unbindMarket]);
+  }, [start, stop, bindMarket, unbindMarket, bindPositions]);
 
   const whiteName = players.white?.name ?? 'White';
   const blackName = players.black?.name ?? 'Black';
@@ -39,6 +43,7 @@ export function GamePage() {
   return (
     <motion.div className="min-h-screen bg-bg-base" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+        <SettlementBanner />
         <AnimatePresence>
           {isFinished && (
             <motion.div
