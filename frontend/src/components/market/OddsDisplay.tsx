@@ -1,48 +1,43 @@
 import { motion } from 'framer-motion';
-import { useMarketStore } from '../../store/marketStore';
-import { useGameStore } from '../../store/gameStore';
-import { probabilitiesToOdds } from '../../lib/odds';
-import type { Outcome } from '../../types';
+import { impliedOdds } from '../../lib/odds';
+import type { Agent, Side, WinProb } from '../../types';
 
 interface OddsDisplayProps {
-  onSelect: (outcome: Outcome) => void;
-  selected: Outcome | null;
+  agentA: Agent;
+  agentB: Agent;
+  probabilities: WinProb;
+  onSelect?: (side: Side) => void;
+  selected?: Side | null;
+  readOnly?: boolean;
 }
 
-const OUTCOMES: { key: Outcome; color: string; bg: string; selectedBg: string }[] = [
-  { key: 'maxi',   color: '#7B4FBF', bg: '#7B4FBF18', selectedBg: '#7B4FBF33' },
-  { key: 'draw',   color: '#C9A227', bg: '#C9A22718', selectedBg: '#C9A22733' },
-  { key: 'gotham', color: '#00B4A6', bg: '#00B4A618', selectedBg: '#00B4A633' },
-];
+const shortName = (a: Agent) => a.name.replace(/^Agent\s+/, '');
 
-export function OddsDisplay({ onSelect, selected }: OddsDisplayProps) {
-  const { probabilities } = useMarketStore();
-  const players = useGameStore(s => s.players);
-  const odds = probabilitiesToOdds(probabilities);
-
-  // Labels track the live game's real agents (maxi=black, gotham=white).
-  const labelOf = (key: Outcome): string =>
-    key === 'maxi' ? (players.black?.name ?? 'Black')
-    : key === 'gotham' ? (players.white?.name ?? 'White')
-    : 'Draw';
+export function OddsDisplay({ agentA, agentB, probabilities, onSelect, selected = null, readOnly = false }: OddsDisplayProps) {
+  const handleSelect = (side: Side) => {
+    if (!readOnly) onSelect?.(side);
+  };
+  const sides: { key: Side; agent: Agent }[] = [
+    { key: 'a', agent: agentA },
+    { key: 'b', agent: agentB },
+  ];
 
   return (
     <>
-      {/* ── Mobile: prob bar + horizontal buttons ── */}
+      {/* ── Mobile: win-probability bar + side buttons ── */}
       <div className="flex flex-col gap-2 lg:hidden">
-        {/* Probability bar */}
         <div className="flex rounded-full overflow-hidden h-6 w-full">
-          {OUTCOMES.map(({ key, color }) => {
+          {sides.map(({ key, agent }) => {
             const pct = probabilities[key] * 100;
             return (
               <motion.div
                 key={key}
                 className="flex items-center justify-center overflow-hidden"
-                style={{ background: color + '99' }}
+                style={{ background: agent.color + '99' }}
                 animate={{ flexGrow: probabilities[key] }}
                 transition={{ duration: 0.8, ease: 'easeOut' }}
               >
-                {pct >= 10 && (
+                {pct >= 12 && (
                   <span className="text-[10px] font-semibold text-white/90 leading-none select-none">
                     {pct.toFixed(0)}%
                   </span>
@@ -52,30 +47,30 @@ export function OddsDisplay({ onSelect, selected }: OddsDisplayProps) {
           })}
         </div>
 
-        {/* Horizontal buttons */}
         <div className="flex gap-2">
-          {OUTCOMES.map(({ key, color, bg, selectedBg }) => {
+          {sides.map(({ key, agent }) => {
             const isSelected = selected === key;
+            const odd = impliedOdds(probabilities[key]);
             return (
               <motion.button
                 key={key}
-                onClick={() => onSelect(key)}
-                className="flex-1 flex flex-col items-center justify-center rounded-xl py-3 px-1 border transition-all duration-200 cursor-pointer"
+                onClick={() => handleSelect(key)}
+                className={`flex-1 flex flex-col items-center justify-center rounded-xl py-3 px-1 border transition-all duration-200 ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
                 style={{
-                  borderColor: isSelected ? color : '#2A2A35',
-                  background: isSelected ? selectedBg : bg,
+                  borderColor: isSelected ? agent.color : '#2A2A35',
+                  background: isSelected ? agent.color + '33' : agent.color + '18',
                 }}
-                whileTap={{ scale: 0.96 }}
+                whileTap={readOnly ? undefined : { scale: 0.96 }}
               >
-                <span className="text-muted text-[11px] leading-tight mb-1 truncate max-w-full px-1">{labelOf(key)}</span>
+                <span className="text-muted text-[11px] leading-tight mb-1">{shortName(agent)}</span>
                 <motion.span
-                  key={odds[key]}
+                  key={odd}
                   className="font-display font-bold text-lg leading-none"
-                  style={{ color }}
+                  style={{ color: agent.color }}
                   initial={{ scale: 1.15 }}
                   animate={{ scale: 1 }}
                 >
-                  ×{odds[key].toFixed(2)}
+                  ×{odd.toFixed(2)}
                 </motion.span>
               </motion.button>
             );
@@ -83,42 +78,39 @@ export function OddsDisplay({ onSelect, selected }: OddsDisplayProps) {
         </div>
       </div>
 
-      {/* ── Desktop: vertical stacked cards ── */}
+      {/* ── Desktop: stacked outcome cards ── */}
       <div className="hidden lg:flex flex-col gap-2">
-        {OUTCOMES.map(({ key, color, selectedBg }) => {
+        {sides.map(({ key, agent }) => {
           const prob = probabilities[key];
-          const odd = odds[key];
+          const odd = impliedOdds(prob);
           const isSelected = selected === key;
-          const label = labelOf(key);
-
           return (
             <motion.button
               key={key}
-              onClick={() => onSelect(key)}
-              className="relative rounded-lg p-3 border text-left transition-all duration-200 cursor-pointer overflow-hidden"
+              onClick={() => handleSelect(key)}
+              className={`relative rounded-lg p-3 border text-left transition-all duration-200 overflow-hidden ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
               style={{
-                borderColor: isSelected ? color : '#2A2A35',
-                background: isSelected ? selectedBg : '#141418',
+                borderColor: isSelected ? agent.color : '#2A2A35',
+                background: isSelected ? agent.color + '33' : '#141418',
               }}
-              whileTap={{ scale: 0.98 }}
+              whileTap={readOnly ? undefined : { scale: 0.98 }}
             >
-              {/* Probability fill bar */}
               <motion.div
                 className="absolute inset-y-0 left-0 rounded-lg opacity-20"
-                style={{ background: color }}
+                style={{ background: agent.color }}
                 animate={{ width: `${prob * 100}%` }}
                 transition={{ duration: 0.8, ease: 'easeOut' }}
               />
               <div className="relative flex items-center justify-between gap-2">
                 <div>
-                  <div className="text-ivory text-sm font-medium">{label}</div>
+                  <div className="text-ivory text-sm font-medium">{agent.name}</div>
                   <div className="text-muted text-xs mt-0.5">{(prob * 100).toFixed(1)}%</div>
                 </div>
                 <div className="text-right">
                   <motion.div
                     key={odd}
                     className="font-display font-bold text-xl"
-                    style={{ color }}
+                    style={{ color: agent.color }}
                     initial={{ scale: 1.1 }}
                     animate={{ scale: 1 }}
                   >

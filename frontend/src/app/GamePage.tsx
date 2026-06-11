@@ -1,140 +1,184 @@
-import { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { useParams, Navigate, Link } from 'react-router-dom';
+import type { EndReason, Match } from '../types';
+import { useTournamentStore } from '../store/tournamentStore';
 import { useGameStore } from '../store/gameStore';
-import { useMarketStore } from '../store/marketStore';
-import { useLiveClocks } from '../lib/useLiveClocks';
-import type { GameResult } from '../lib/types';
+import { getAgent } from '../lib/agents';
+import {
+  deriveLiveState, matchStatus, participantsKnown, isMatchRevealed,
+  preMatchProb, winProbAtMove, feederLabel, matchLongLabel,
+} from '../lib/tournament';
+import { chessAtMove, capturesFrom } from '../lib/chess';
 import { ChessBoard } from '../components/chess/ChessBoard';
 import { AgentCard } from '../components/chess/AgentCard';
 import { MarketPanel } from '../components/market/MarketPanel';
-import { SettlementBanner } from '../components/market/SettlementBanner';
-import { usePositionsStore } from '../store/positionsStore';
-import { useTournamentStore } from '../store/tournamentStore';
-import { TournamentRail } from '../components/tournament/TournamentRail';
-import { LeagueInterstitial } from '../components/tournament/LeagueInterstitial';
-import { useStartsIn, formatClock } from '../lib/useLiveClocks';
+import { OddsDisplay } from '../components/market/OddsDisplay';
+import { Countdown } from '../components/tournament/Countdown';
 
-function resultBanner(result: GameResult | null, whiteName: string, blackName: string): string {
-  switch (result) {
-    case 'white_wins':    return `${whiteName} wins`;
-    case 'black_wins':    return `${blackName} wins`;
-    case 'white_timeout': return `${blackName} wins on time`;
-    case 'black_timeout': return `${whiteName} wins on time`;
-    case 'draw':          return 'Draw';
-    case 'aborted':       return 'Game aborted';
-    default:              return 'Game over';
-  }
-}
+const REASON_TEXT: Record<EndReason, string> = {
+  checkmate: 'by checkmate',
+  material: 'on captured material',
+  centerControl: 'on board control',
+  coinflip: 'on a tiebreak',
+};
 
 export function GamePage() {
-  const { players, turn, capturedPieces, isFinished, result, waiting, connected, start, stop } = useGameStore();
-  const bindMarket = useMarketStore(s => s.bind);
-  const bindPositions = usePositionsStore(s => s.bind);
-  const bindTournament = useTournamentStore(s => s.bind);
-  const tournament = useTournamentStore(s => s.snapshot);
-  const league = useTournamentStore(s => s.league);
-  const joinedMidGame = useGameStore(s => s.joinedMidGame);
-  const moveNumber = useGameStore(s => s.moveNumber);
-  const startsIn = useStartsIn();
-  const unbindMarket = useMarketStore(s => s.unbind);
-  const clocks = useLiveClocks();
+  const { matchId } = useParams();
+  const tournament = useTournamentStore(s => s.tournament);
+  const now = useTournamentStore(s => s.now);
 
-  // Live game + market streams: one socket, auto-rolls to the next game on the same screen.
-  useEffect(() => {
-    start();
-    bindMarket();
-    bindPositions();
-    bindTournament();
-    return () => { stop(); unbindMarket(); };
-  }, [start, stop, bindMarket, unbindMarket, bindPositions, bindTournament]);
+  // Live game store (only meaningful when this match is the live one).
+  const liveFen = useGameStore(s => s.fen);
+  const liveCaptures = useGameStore(s => s.captures);
 
-  const whiteName = players.white?.name ?? 'White';
-  const blackName = players.black?.name ?? 'Black';
+  const match = tournament.matches.find(m => m.id === matchId);
 
+  // Final position for completed matches (computed locally, independent of the engine).
+  const finalView = useMemo(() => {
+    if (!match) return null;
+    const chess = chessAtMove(match.pgn, match.pgn.length);
+    return { fen: chess.fen(), captures: capturesFrom(chess) };
+  }, [match]);
+
+  if (!match) return <Navigate to="/games" replace />;
+
+  const live = deriveLiveState(tournament, now);
+  const isLiveMatch = live.phase === 'live' && live.match?.id === match.id;
+  const status = matchStatus(match, now);
+  const known = participantsKnown(tournament, match, now);
+  const revealed = isMatchRevealed(tournament, match.index, now);
+
+  // a = white (bottom), b = black (top)
+  const agentA = getAgent(match.aId);
+  const agentB = getAgent(match.bId);
+
+  // ── Upcoming match whose participants aren't decided yet ──
+  if (status === 'upcoming' && !known) {
+    return (
+      <ArenaShell match={match}>
+        <CountdownBanner target={match.startTime} />
+        <div className="flex items-center justify-center gap-6 py-10 text-center">
+          <TbdSlot label={feederLabel(tournament, match.sourceA)} />
+          <span className="text-muted font-display text-xl">vs</span>
+          <TbdSlot label={feederLabel(tournament, match.sourceB)} />
+        </div>
+        <p className="text-center text-muted text-sm">
+          The two players are decided once the feeder matches finish.
+        </p>
+      </ArenaShell>
+    );
+  }
+
+  if (!agentA || !agentB) return <Navigate to="/games" replace />;
+
+  // Win-probability for non-live views.
+  const previewProb = status === 'completed' ? winProbAtMove(match, match.pgn.length) : preMatchProb(match);
+
+  // ── Live match ──
+  if (isLiveMatch) {
+    const turn = liveFen.split(' ')[1]; // 'w' | 'b'
+    const winner = revealed ? getAgent(match.winnerId) : null;
+    return (
+      <motion.div className="min-h-screen bg-bg-base" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+          {winner && (
+            <WinnerBanner name={winner.name} reason={match.endReason} />
+          )}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+            <div className="flex flex-col gap-1.5">
+              {/* Top = black = agent B */}
+              <AgentCard agent={agentB} isActive={turn === 'b' && !revealed} capturedPieces={liveCaptures.byBlack} capturedIsWhite />
+              <ChessBoard />
+              {/* Bottom = white = agent A */}
+              <AgentCard agent={agentA} isActive={turn === 'w' && !revealed} capturedPieces={liveCaptures.byWhite} />
+            </div>
+            <div className="lg:sticky lg:top-20 lg:self-start">
+              <MarketPanel agentA={agentA} agentB={agentB} />
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // ── Completed match (result) ──
+  if (status === 'completed') {
+    const winner = getAgent(match.winnerId);
+    const caps = finalView!.captures;
+    return (
+      <ArenaShell match={match}>
+        {winner && <WinnerBanner name={winner.name} reason={match.endReason} />}
+        <div className="flex flex-col gap-1.5 max-w-[460px] mx-auto">
+          <AgentCard agent={agentB} isActive={false} capturedPieces={caps.byBlack} capturedIsWhite />
+          <ChessBoard fen={finalView!.fen} />
+          <AgentCard agent={agentA} isActive={false} capturedPieces={caps.byWhite} />
+        </div>
+        <div className="max-w-[460px] mx-auto mt-4">
+          <OddsDisplay agentA={agentA} agentB={agentB} probabilities={previewProb} readOnly />
+        </div>
+      </ArenaShell>
+    );
+  }
+
+  // ── Upcoming match with known participants ──
+  return (
+    <ArenaShell match={match}>
+      <CountdownBanner target={match.startTime} />
+      <div className="flex flex-col gap-1.5 max-w-[460px] mx-auto">
+        <AgentCard agent={agentB} isActive={false} />
+        <ChessBoard fen={chessAtMove(match.pgn, 0).fen()} />
+        <AgentCard agent={agentA} isActive={false} />
+      </div>
+      <div className="max-w-[460px] mx-auto mt-4">
+        <p className="text-center text-muted text-xs uppercase tracking-widest mb-2">Pre-match win chance</p>
+        <OddsDisplay agentA={agentA} agentB={agentB} probabilities={previewProb} readOnly />
+      </div>
+    </ArenaShell>
+  );
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────
+function ArenaShell({ match, children }: { match: Match; children: React.ReactNode }) {
   return (
     <motion.div className="min-h-screen bg-bg-base" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-        <SettlementBanner />
-        <AnimatePresence>
-          {isFinished && (
-            <motion.div
-              key="banner"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="mb-4 text-center py-3 rounded-xl border border-gold/50 bg-gold/10 text-gold font-display font-semibold tracking-wider"
-            >
-              ♚ {resultBanner(result, whiteName, blackName)} · next game shortly…
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {waiting && !isFinished && !connected && (
-          <div className="mb-4 text-center py-3 rounded-xl border border-border bg-bg-card text-muted text-sm">
-            Connecting…
-          </div>
-        )}
-
-        {waiting && !isFinished && connected && (
-          tournament && tournament.status.state === 'live'
-            ? <div className="mb-4 text-center py-3 rounded-xl border border-border bg-bg-card text-muted text-sm">
-                Next match starting…
-              </div>
-            : league
-              ? <LeagueInterstitial />
-              : <div className="mb-4 text-center py-3 rounded-xl border border-border bg-bg-card text-muted text-sm">
-                  Waiting for the next live game…
-                </div>
-        )}
-
-        {(waiting && connected && !tournament && league) ? null :
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-          {/* Chess area */}
-          <div className="flex flex-col gap-1.5">
-            {/* Black player (top) — shows white pieces it has captured */}
-            <AgentCard
-              name={blackName}
-              color="maxi"
-              isActive={turn === 'b' && !isFinished}
-              capturedPieces={capturedPieces.byMaxi}
-              capturedPieceColor="white"
-              clockMs={clocks.black}
-            />
-
-            <div className="relative">
-              {startsIn > 0 && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-lg bg-black/70 backdrop-blur-[2px]">
-                  <p className="text-muted text-xs uppercase tracking-widest mb-1">{whiteName} vs {blackName}</p>
-                  <p className="font-display text-gold text-4xl font-bold tabular-nums">{formatClock(startsIn)}</p>
-                  <p className="text-ivory text-xs mt-1.5">place your predictions</p>
-                </div>
-              )}
-              {joinedMidGame && !isFinished && startsIn === 0 && (
-                <span className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded bg-black/60 text-gotham text-[10px] font-semibold tracking-widest">
-                  LIVE · MOVE {moveNumber}
-                </span>
-              )}
-              <ChessBoard />
-            </div>
-
-            {/* White player (bottom) — shows black pieces it has captured */}
-            <AgentCard
-              name={whiteName}
-              color="gotham"
-              isActive={turn === 'w' && !isFinished}
-              capturedPieces={capturedPieces.byGotham}
-              capturedPieceColor="black"
-              clockMs={clocks.white}
-            />
-          </div>
-
-          {/* Market panel */}
-          <div className="lg:sticky lg:top-20 lg:self-start flex flex-col gap-4">
-            <MarketPanel />
-            <TournamentRail />
-          </div>
-        </div>}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+        <Link to="/games" className="inline-flex items-center gap-1.5 text-muted hover:text-gold text-sm mb-4 transition-colors">
+          ← All games
+        </Link>
+        <h1 className="font-display text-ivory text-xl font-bold mb-4">{matchLongLabel(match)}</h1>
+        {children}
       </div>
     </motion.div>
+  );
+}
+
+function CountdownBanner({ target }: { target: number }) {
+  return (
+    <div className="mb-4 text-center py-4 rounded-xl border border-gold/40 bg-gold/5">
+      <div className="text-muted text-xs uppercase tracking-widest mb-1">Game starts in</div>
+      <Countdown target={target} className="font-display text-gold text-3xl font-bold tabular-nums" />
+    </div>
+  );
+}
+
+function WinnerBanner({ name, reason }: { name: string; reason: EndReason | null }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mb-4 text-center py-3 rounded-xl border border-gold/50 bg-gold/10 text-gold font-display font-semibold tracking-wider"
+    >
+      🏆 {name} wins {reason ? REASON_TEXT[reason] : ''}
+    </motion.div>
+  );
+}
+
+function TbdSlot({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="w-16 h-16 rounded-full border border-dashed border-border flex items-center justify-center text-muted text-2xl">?</div>
+      <span className="text-muted text-sm italic max-w-[120px] text-center">{label}</span>
+    </div>
   );
 }

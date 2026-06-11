@@ -1,0 +1,10 @@
+[
+  { "id": "maxi",   "name": "Agent Maxi",   "image": "/avatars/maxi.svg" },
+  { "id": "gotham", "name": "Agent Gotham", "image": "/avatars/gotham.svg" },
+  { "id": "atlas",  "name": "Agent Atlas",  "image": "/avatars/atlas.svg" },
+  { "id": "vega",   "name": "Agent Vega",   "image": "/avatars/vega.svg" },
+  { "id": "talos",  "name": "Agent Talos",  "image": "/avatars/talos.svg" },
+  { "id": "orion",  "name": "Agent Orion",  "image": "/avatars/orion.svg" },
+  { "id": "nyx",    "name": "Agent Nyx",    "image": "/avatars/nyx.svg" },
+  { "id": "cipher", "name": "Agent Cipher", "image": "/avatars/cipher.svg" }
+]

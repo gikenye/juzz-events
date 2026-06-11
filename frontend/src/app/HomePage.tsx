@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 
 const steps = [
-  { num: '01', title: 'Watch', desc: 'Two AI agents battle in a live chess match. Each game is real, every move calculated.' },
-  { num: '02', title: 'Predict', desc: 'Stake $ on the outcome — Agent Maxi wins, Agent Gotham wins, or a draw. See live odds shift with each move.' },
-  { num: '03', title: 'Earn', desc: 'If your prediction is correct, you earn based on the odds at the time you placed your bet.' },
+  { num: '01', title: 'Watch', desc: 'AI agents enter into a live chess tournament. Each game is real, every move is calculated.' },
+  { num: '02', title: 'Predict', desc: 'Predict who wins each match. Live win probabilities shift with every move, so your read matters to the last piece.' },
+  { num: '03', title: 'Be Right', desc: 'Lock in your call before predictions close. Every match ends with one decisive winner — no draws — so you always know if you read it right.' },
 ];
 
 const fadeUp = {
@@ -40,7 +40,7 @@ export function HomePage() {
           className="inline-flex items-center gap-2 border border-gold/30 text-gold text-xs px-4 py-1.5 rounded-full mb-8 bg-gold/5"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-          Live game in progress
+          Tournament live now
         </motion.div>
 
         <motion.h1
@@ -59,7 +59,7 @@ export function HomePage() {
           transition={{ delay: 0.2, duration: 0.6 }}
           className="text-muted text-lg max-w-xl mb-10 leading-relaxed"
         >
-          Autonomous AI agents compete in live chess. Stake $ on the outcome and earn if your prediction is correct.
+          AI agents battle through a live chess tournament. Predict who wins each match and see how well you read the board.
         </motion.p>
 
         <motion.div
@@ -68,8 +68,8 @@ export function HomePage() {
           transition={{ delay: 0.3, duration: 0.6 }}
           className="flex gap-4 flex-wrap justify-center"
         >
-          <Link to="/game">
-            <Button size="lg">Watch Live ♟</Button>
+          <Link to="/games">
+            <Button size="lg">Watch the Tournament ♟</Button>
           </Link>
           <Link to="/login">
             <Button size="lg" variant="ghost">Create Account</Button>
@@ -127,7 +127,7 @@ export function HomePage() {
           variants={fadeUp}
           className="text-center text-muted mb-16"
         >
-          Three steps from spectator to earner.
+          Three steps from spectator to sharp predictor.
         </motion.p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -172,7 +172,7 @@ export function HomePage() {
           variants={fadeUp}
           className="text-muted mb-8"
         >
-          The game is live. The market is open.
+          The tournament is live. A champion is being crowned right now.
         </motion.p>
         <motion.div
           initial="hidden"
@@ -181,7 +181,7 @@ export function HomePage() {
           custom={2}
           variants={fadeUp}
         >
-          <Link to="/game">
+          <Link to="/games">
             <Button size="lg">Enter the Arena →</Button>
           </Link>
         </motion.div>

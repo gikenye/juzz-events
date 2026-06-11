@@ -20,7 +20,8 @@ export function Navbar() {
         {/* Nav links */}
         <div className="hidden sm:flex items-center gap-6">
           <Link to="/" className="text-muted hover:text-ivory text-sm transition-colors">Home</Link>
-          <Link to="/game" className="text-muted hover:text-ivory text-sm transition-colors">Live Game</Link>
+          <Link to="/games" className="text-muted hover:text-ivory text-sm transition-colors">All Games</Link>
+          <Link to="/game" className="text-muted hover:text-ivory text-sm transition-colors">Live Match</Link>
         </div>
 
         {/* Right side */}
