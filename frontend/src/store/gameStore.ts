@@ -30,6 +30,12 @@ interface GameState {
   clockAnchor: number;          // performance.now() at last clock update
   isFinished: boolean;
   result: GameResult | null;
+  // Server-time sync: offset = Date.now() − server ts (EMA); lag = how stale the
+  // last anchor was on arrival. Both 0 against an old backend.
+  serverOffsetMs: number;
+  eventLagMs: number;
+  startsAtMs: number;
+  joinedMidGame: boolean;
   capturedPieces: { byMaxi: string[]; byGotham: string[] };
   waiting: boolean;             // connected but no live chess game yet
 
@@ -53,6 +59,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   clockAnchor: 0,
   isFinished: false,
   result: null,
+  serverOffsetMs: 0,
+  eventLagMs: 0,
+  startsAtMs: 0,
+  joinedMidGame: false,
   capturedPieces: { byMaxi: [], byGotham: [] },
   waiting: true,
 
@@ -70,6 +80,11 @@ export const useGameStore = create<GameState>((set, get) => ({
         else set({ waiting: true });
       }));
       unsub.push(socket.on('subscribed', ({ snapshot }) => {
+        if (snapshot.now_ms) set({ serverOffsetMs: Date.now() - snapshot.now_ms });
+        set({
+          startsAtMs: snapshot.starts_at_ms ?? 0,
+          joinedMidGame: snapshot.move_number > 0,
+        });
         applyState(set, {
           gameId: snapshot.id,
           fen: snapshot.state,
@@ -99,9 +114,21 @@ export const useGameStore = create<GameState>((set, get) => ({
 
 type Setter = (partial: Partial<GameState>) => void;
 
+function syncServerTime(ev: { ts_ms?: number }, set: Setter, get: () => GameState) {
+  if (!ev.ts_ms) return;
+  const sample = Date.now() - ev.ts_ms;
+  const prev = get().serverOffsetMs;
+  const offset = prev === 0 ? sample : prev + 0.2 * (sample - prev);
+  // Anchor staleness: transit time of THIS event beyond the steady offset.
+  const lag = Math.min(2000, Math.max(0, sample - offset));
+  set({ serverOffsetMs: offset, eventLagMs: lag });
+}
+
 function handleEvent(ev: GameEvent, set: Setter, get: () => GameState) {
+  if ('ts_ms' in ev) syncServerTime(ev, set, get);
   switch (ev.type) {
     case 'started':
+      set({ startsAtMs: ev.starts_at_ms ?? 0, joinedMidGame: false });
       applyState(set, {
         fen: ev.state, clocks: ev.clocks_ms, moveNumber: ev.move_number,
         players: ev.players ? seatPlayers(ev.players) : get().players,
@@ -116,6 +143,10 @@ function handleEvent(ev: GameEvent, set: Setter, get: () => GameState) {
       return;
     case 'game_over':
       set({ isFinished: true, result: ev.result });
+      if (ev.clocks_ms?.length === 2) {
+        // Authoritative finals (clamped server-side): a flag fall reads 0:00.
+        set({ clocksMs: [ev.clocks_ms[0], ev.clocks_ms[1]], clockAnchor: performance.now() });
+      }
       scheduleRoll(set, get);
       return;
     case 'engine_error':
@@ -144,6 +175,7 @@ function subscribeTo(game: GameSummary, set: Setter) {
   set({
     gameId: game.id, waiting: false, isFinished: false, result: null,
     players: seatPlayers(game.players),
+    startsAtMs: game.starts_at_ms ?? 0,
   });
   socket.subscribeGame(game.id, 0);
 }

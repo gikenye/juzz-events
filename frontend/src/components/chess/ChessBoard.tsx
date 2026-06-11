@@ -17,8 +17,13 @@ const customPieces = Object.fromEntries(
   ])
 );
 
-export function ChessBoard() {
-  const { fen, lastMove } = useGameStore();
+export function ChessBoard({ fen: fenProp, lastMove: lastMoveProp }: {
+  fen?: string;
+  lastMove?: { from: string; to: string } | null;
+} = {}) {
+  const store = useGameStore();
+  const fen = fenProp ?? store.fen;
+  const lastMove = lastMoveProp !== undefined ? lastMoveProp : store.lastMove;
 
   const squareStyles: Record<string, React.CSSProperties> = {};
   if (lastMove) {

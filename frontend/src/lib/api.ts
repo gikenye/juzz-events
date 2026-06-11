@@ -1,6 +1,6 @@
 // Typed REST client for the juzz backend. Money in/out is canonical µ$ (6dp strings).
 import { API_URL, GAME_TYPE } from './config';
-import type { GameSummary, MarketSummary, Balance, AssetInfo, Position, Settlement } from './types';
+import type { GameSummary, MarketSummary, Balance, AssetInfo, Position, Settlement, LeagueOverview, GameReplay } from './types';
 
 class ApiError extends Error {
   status: number;
@@ -44,6 +44,9 @@ export const api = {
   },
   markets: (gameId: string) =>
     req<MarketSummary[]>(`/markets?game_id=${encodeURIComponent(gameId)}`),
+  league: () => req<LeagueOverview>('/league'),
+  gameReplay: (gameId: string) =>
+    req<GameReplay>(`/games/${encodeURIComponent(gameId)}/replay`),
   market: (marketId: string) =>
     req<MarketSummary>(`/markets/${encodeURIComponent(marketId)}`),
   settlements: (wallet: string) =>
