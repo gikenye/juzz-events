@@ -36,14 +36,16 @@ interface GameState {
   eventLagMs: number;
   startsAtMs: number;
   joinedMidGame: boolean;
-  capturedPieces: { byMaxi: string[]; byGotham: string[] };
+  capturedPieces: { byBlack: string[]; byWhite: string[] };
   waiting: boolean;             // connected but no live chess game yet
 
   start: () => void;
+  watch: (gameId: string) => void;
   stop: () => void;
 }
 
 let wired = false;
+let pinned = false; // explicit-game mode (match routes): no auto-roll
 let rollTimer: ReturnType<typeof setTimeout> | null = null;
 const unsub: Array<() => void> = [];
 
@@ -63,10 +65,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   eventLagMs: 0,
   startsAtMs: 0,
   joinedMidGame: false,
-  capturedPieces: { byMaxi: [], byGotham: [] },
+  capturedPieces: { byBlack: [], byWhite: [] },
   waiting: true,
 
   start() {
+    pinned = false;
     if (!wired) {
       wired = true;
       unsub.push(socket.on('status', (s) => {
@@ -74,7 +77,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         if (s === 'open' && !get().gameId) socket.listGames();
       }));
       unsub.push(socket.on('game_list', (games) => {
-        if (get().gameId) return; // already watching one
+        if (pinned || get().gameId) return; // pinned to a match, or already watching one
         const next = pickChess(games, null);
         if (next) subscribeTo(next, set);
         else set({ waiting: true });
@@ -104,10 +107,22 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (socket.getStatus() === 'open' && !get().gameId) socket.listGames();
   },
 
+  /** Pin to one game (match routes): same stream wiring, no auto-roll. */
+  watch(gameId: string) {
+    get().start(); // idempotent wiring + socket connect
+    pinned = true; // after start(), which resets it
+    if (get().gameId === gameId) return;
+    if (rollTimer) { clearTimeout(rollTimer); rollTimer = null; }
+    socket.unsubscribeGame();
+    set({ gameId, waiting: false, isFinished: false, result: null, lastMove: null });
+    socket.subscribeGame(gameId, 0);
+  },
+
   stop() {
     if (rollTimer) { clearTimeout(rollTimer); rollTimer = null; }
     while (unsub.length) unsub.pop()!();
     wired = false;
+    pinned = false;
     socket.unsubscribeGame();
   },
 }));
@@ -158,6 +173,7 @@ function handleEvent(ev: GameEvent, set: Setter, get: () => GameState) {
 }
 
 function scheduleRoll(set: Setter, get: () => GameState) {
+  if (pinned) return; // match routes follow the bracket, not the roll
   if (rollTimer) clearTimeout(rollTimer);
   rollTimer = setTimeout(function poll() {
     const current = get().gameId;

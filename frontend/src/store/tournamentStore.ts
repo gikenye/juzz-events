@@ -10,6 +10,8 @@ interface TournamentState {
   league: LeagueOverview | null;
   nextMatchStartsAtMs: number;
   serverOffsetMs: number;
+  /** Wall clock ticked each second while bound — drives countdown renders. */
+  now: number;
 
   bind: () => void;
   unbind: () => void;
@@ -17,6 +19,7 @@ interface TournamentState {
 
 let wired = false;
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
+let tickTimer: ReturnType<typeof setInterval> | null = null;
 const unsub: Array<() => void> = [];
 
 export const useTournamentStore = create<TournamentState>((set) => ({
@@ -24,10 +27,12 @@ export const useTournamentStore = create<TournamentState>((set) => ({
   league: null,
   nextMatchStartsAtMs: 0,
   serverOffsetMs: 0,
+  now: Date.now(),
 
   bind() {
     if (wired) return;
     wired = true;
+    tickTimer = setInterval(() => set({ now: Date.now() }), 1000);
 
     const fetchLeague = async () => {
       try {
@@ -99,6 +104,7 @@ export const useTournamentStore = create<TournamentState>((set) => ({
   unbind() {
     while (unsub.length) unsub.pop()!();
     if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+    if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
     socket.unsubscribeTournament();
     wired = false;
   },
