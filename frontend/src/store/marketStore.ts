@@ -9,7 +9,7 @@ import { socket } from '../lib/ws';
 import { useGameStore } from './gameStore';
 import { useAuthStore } from './authStore';
 import type { MarketSummary } from '../lib/types';
-import type { Bet, Outcome, Probabilities } from '../types';
+import type { Outcome, Probabilities } from '../types';
 
 type OutcomeMarkets = { maxi: MarketSummary | null; draw: MarketSummary | null; gotham: MarketSummary | null };
 
@@ -21,7 +21,6 @@ interface MarketState {
   stakeAmount: string;
   betError: string | null;
   pending: boolean;
-  bets: Bet[];
   isMarketOpen: boolean;
 
   bind: () => void;
@@ -61,7 +60,6 @@ export const useMarketStore = create<MarketState>((set, get) => ({
   stakeAmount: '5.00',
   betError: null,
   pending: false,
-  bets: [],
   isMarketOpen: false,
 
   bind() {
@@ -95,18 +93,10 @@ export const useMarketStore = create<MarketState>((set, get) => ({
       if (touched) set({ markets: touched, probabilities: pricesToProbabilities(touched) });
     }));
 
-    // Confirmed buy → record the bet, refresh balance.
-    unsub.push(socket.on('trade_confirmed', (t) => {
-      const outcome = (Object.keys(get().markets) as Outcome[]).find(k => get().markets[k]?.market_id === t.market_id);
-      if (!outcome) return;
-      const price = t.yes_price > 0 ? t.yes_price : 0.5;
-      set(s => ({
-        pending: false,
-        betError: null,
-        stakeAmount: '',
-        selectedOutcome: null,
-        bets: [...s.bets, { id: t.market_id + ':' + s.bets.length, outcome, stake: t.cost, odds: +(1 / price).toFixed(2), timestamp: Date.now() }],
-      }));
+    // Confirmed buy → clear the slip; the position itself arrives on the user
+    // channel (positionsStore) — the server is the only bookkeeper.
+    unsub.push(socket.on('trade_confirmed', () => {
+      set({ pending: false, betError: null, stakeAmount: '', selectedOutcome: null });
       void useAuthStore.getState().refreshBalance();
     }));
 

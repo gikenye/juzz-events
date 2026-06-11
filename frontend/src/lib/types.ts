@@ -93,6 +93,16 @@ export type UserEvent =
   | { type: 'position_update'; market_id: string; yes_shares: number; no_shares: number; avg_yes_price: number; avg_no_price: number }
   | { type: 'settlement'; settlement_id: string; market_id: string; payout: number; winning_side: boolean | null; ts_ms: number };
 
+export interface Settlement {
+  settlement_id: string;
+  market_id:     string;
+  yes_shares:    number;
+  no_shares:     number;
+  winning_side:  boolean | null; // null = voided → stake refunded
+  payout:        number;         // dollars
+  ts_ms:         number;
+}
+
 export interface Balance {
   available:    string; // µ$ as decimal string
   locked:       string;
@@ -120,6 +130,6 @@ export interface Position {
   market_id: string;
   yes_shares: number;
   no_shares: number;
-  yes_cost: number;
-  no_cost: number;
+  avg_yes_price: number;
+  avg_no_price: number;
 }
