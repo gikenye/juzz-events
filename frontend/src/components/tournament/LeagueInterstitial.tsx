@@ -6,6 +6,7 @@ import { api } from '../../lib/api';
 import type { GameReplay } from '../../lib/types';
 import { useTournamentStore } from '../../store/tournamentStore';
 import { ChessBoard } from '../chess/ChessBoard';
+import { CupFuturesCard } from './CupFuturesCard';
 import { useAgentNames } from './useAgentNames';
 
 const REPLAY_PLY_MS = 1800;
@@ -64,6 +65,10 @@ export function LeagueInterstitial() {
           </p>
         )}
       </div>
+
+      {!!league.futures?.length && (
+        <CupFuturesCard rows={league.futures} title={league.upcoming?.name ?? ''} />
+      )}
 
       {replay && replay.moves.length > 0 && (
         <div className="relative">
