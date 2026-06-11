@@ -1,5 +1,5 @@
 import type { Agent } from '../../types';
-import { PIECE_VALUE } from '../../lib/chess';
+const PIECE_VALUE: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9 };
 import { AgentAvatar } from './AgentAvatar';
 
 const PIECE_UNICODE: Record<string, string> = {

@@ -1,5 +1,5 @@
 import { useTournamentStore } from '../../store/tournamentStore';
-import { formatCountdown } from '../../lib/tournament';
+import { formatCountdown } from '../../lib/tournamentView';
 
 interface CountdownProps {
   target: number;       // absolute epoch ms to count down to

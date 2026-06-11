@@ -1,26 +1,18 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import type { Agent, Match, Tournament } from '../../types';
-import { useTournamentStore } from '../../store/tournamentStore';
-import { getAgent } from '../../lib/agents';
+import type { Agent } from '../../types';
+import { getAgent, fallbackAgent, eloExpected } from '../../lib/agents';
 import { impliedOdds } from '../../lib/odds';
-import {
-  deriveLiveState, matchStatus, participantsKnown, isMatchRevealed,
-  winProbAtMove, preMatchProb, matchShortLabel, matchLongLabel, feederLabel, formatLocalTime,
-} from '../../lib/tournament';
+import { cupRecord, type MatchVM } from '../../lib/tournamentView';
 import { AgentAvatar } from '../chess/AgentAvatar';
 import { Countdown } from './Countdown';
 
-function agentRecord(tournament: Tournament, agentId: string | null, now: number) {
-  if (!agentId) return { wins: 0, losses: 0 };
-  const played = tournament.matches.filter(
-    m =>
-      isMatchRevealed(tournament, m.index, now) &&
-      m.winnerId !== null &&
-      (m.aId === agentId || m.bId === agentId),
-  );
-  const wins = played.filter(m => m.winnerId === agentId).length;
-  return { wins, losses: played.length - wins };
+const STAGE_LONG: Record<MatchVM['stage'], string> = {
+  quarter: 'Quarterfinal', semi: 'Semifinal', final: 'Championship Final',
+};
+
+function longLabel(m: MatchVM): string {
+  return m.stage === 'final' ? STAGE_LONG.final : `${STAGE_LONG[m.stage]} ${m.matchIndex + 1}`;
 }
 
 interface AgentSideProps {
@@ -85,39 +77,37 @@ function TbdSide({ label, align }: { label: string; align: 'left' | 'right' }) {
 }
 
 interface MatchCardProps {
-  match: Match;
+  match: MatchVM;
+  /** All matches in the cup — for the per-agent W/L mini stat. */
+  matches: MatchVM[];
   featured?: boolean;
+  /** Live market probability for the playing match (else Elo preview). */
+  liveProb?: { a: number; b: number } | null;
+  /** Pre-game countdown target (current match only), local epoch ms. */
+  countdownTarget?: number;
 }
 
-export function MatchCard({ match, featured = false }: MatchCardProps) {
-  const tournament = useTournamentStore(s => s.tournament);
-  const now = useTournamentStore(s => s.now);
+export function MatchCard({ match, matches, featured = false, liveProb = null, countdownTarget = 0 }: MatchCardProps) {
   const navigate = useNavigate();
 
-  const status = matchStatus(match, now);
-  const known = participantsKnown(tournament, match, now);
-  const revealed = isMatchRevealed(tournament, match.index, now);
+  const a = match.aId ? getAgent(match.aId) ?? fallbackAgent(match.aId) : null;
+  const b = match.bId ? getAgent(match.bId) ?? fallbackAgent(match.bId) : null;
 
-  const a = known ? getAgent(match.aId) : null;
-  const b = known ? getAgent(match.bId) : null;
-
-  let prob = preMatchProb(match);
-  if (status === 'live') {
-    const live = deriveLiveState(tournament, now);
-    if (live.match?.id === match.id) prob = winProbAtMove(match, live.moveIndex);
-  }
-  const winnerIsA = match.winnerId === match.aId;
+  const pa = a && b ? eloExpected(a.elo, b.elo) : 0.5;
+  const prob = liveProb ?? { a: pa, b: 1 - pa };
+  const revealed = match.phase === 'completed';
+  const winnerIsA = match.winnerId !== null && match.winnerId === match.aId;
   const oddsA = impliedOdds(prob.a);
   const oddsB = impliedOdds(prob.b);
 
-  const recA = a ? agentRecord(tournament, a.id, now) : { wins: 0, losses: 0 };
-  const recB = b ? agentRecord(tournament, b.id, now) : { wins: 0, losses: 0 };
+  const recA = a ? cupRecord(matches, a.id) : { w: 0, l: 0 };
+  const recB = b ? cupRecord(matches, b.id) : { w: 0, l: 0 };
 
   const dimA = revealed && !winnerIsA;
   const dimB = revealed && winnerIsA;
 
   const statusChip = (() => {
-    if (status === 'live') {
+    if (match.phase === 'live') {
       return (
         <span
           className="flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-0.5 rounded-full"
@@ -128,7 +118,7 @@ export function MatchCard({ match, featured = false }: MatchCardProps) {
         </span>
       );
     }
-    if (status === 'completed') {
+    if (match.phase === 'completed') {
       return (
         <span
           className="text-[10px] font-medium px-2.5 py-0.5 rounded-full border"
@@ -143,7 +133,9 @@ export function MatchCard({ match, featured = false }: MatchCardProps) {
         className="text-[10px] font-medium px-2.5 py-0.5 rounded-full border"
         style={{ borderColor: 'rgba(201,162,39,0.3)', color: '#C9A227', background: 'rgba(201,162,39,0.06)' }}
       >
-        <Countdown target={match.startTime} />
+        {match.phase === 'countdown' && countdownTarget > 0
+          ? <Countdown target={countdownTarget} />
+          : 'Queued'}
       </span>
     );
   })();
@@ -190,10 +182,10 @@ export function MatchCard({ match, featured = false }: MatchCardProps) {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-display text-[10px] font-bold uppercase tracking-[0.18em] shrink-0" style={{ color: '#C9A227' }}>
-              {matchShortLabel(match)}
+              {match.code}
             </span>
             <span className="shrink-0 text-[10px] select-none" style={{ color: '#2A2A35' }}>·</span>
-            <span className="text-[10px] truncate" style={{ color: '#9A9AAF' }}>{matchLongLabel(match)}</span>
+            <span className="text-[10px] truncate" style={{ color: '#9A9AAF' }}>{longLabel(match)}</span>
           </div>
           {statusChip}
         </div>
@@ -202,11 +194,11 @@ export function MatchCard({ match, featured = false }: MatchCardProps) {
           <>
             {/* Agent A  VS  Agent B */}
             <div className="flex items-center">
-              <AgentSide agent={a} wins={recA.wins} losses={recA.losses} isWinner={revealed && winnerIsA} dim={dimA} align="left" />
+              <AgentSide agent={a} wins={recA.w} losses={recA.l} isWinner={revealed && winnerIsA} dim={dimA} align="left" />
               <span className="shrink-0 text-[10px] font-black tracking-widest select-none px-1" style={{ color: '#2F2F3C' }}>
                 VS
               </span>
-              <AgentSide agent={b} wins={recB.wins} losses={recB.losses} isWinner={revealed && !winnerIsA} dim={dimB} align="right" />
+              <AgentSide agent={b} wins={recB.w} losses={recB.l} isWinner={revealed && !winnerIsA} dim={dimB} align="right" />
             </div>
 
             {/* Odds */}
@@ -252,11 +244,11 @@ export function MatchCard({ match, featured = false }: MatchCardProps) {
           </>
         ) : (
           <div className="flex items-center">
-            <TbdSide label={feederLabel(tournament, match.sourceA)} align="left" />
+            <TbdSide label={`Winner of ${match.sourceA ?? '—'}`} align="left" />
             <span className="shrink-0 text-[10px] font-black tracking-widest select-none px-1" style={{ color: '#2F2F3C' }}>
               VS
             </span>
-            <TbdSide label={feederLabel(tournament, match.sourceB)} align="right" />
+            <TbdSide label={`Winner of ${match.sourceB ?? '—'}`} align="right" />
           </div>
         )}
       </div>
@@ -264,11 +256,10 @@ export function MatchCard({ match, featured = false }: MatchCardProps) {
       {/* Footer */}
       <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderTop: '1px solid #1C1C24' }}>
         <span className="text-[10px]" style={{ color: '#9A9AAF' }}>
-          {status === 'completed' ? 'Played' : status === 'live' ? 'In progress' : 'Starts'}{' '}
-          {formatLocalTime(match.startTime)}
+          {match.phase === 'completed' ? 'Played' : match.phase === 'live' ? 'In progress' : 'Plays next in bracket order'}
         </span>
         <span className="text-[10px] font-medium" style={{ color: 'rgba(201,162,39,0.55)' }}>
-          {status === 'completed' ? 'View result →' : 'Open arena →'}
+          {match.phase === 'completed' ? 'View result →' : 'Open arena →'}
         </span>
       </div>
     </motion.button>

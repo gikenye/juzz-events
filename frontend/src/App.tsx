@@ -3,13 +3,13 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-route
 import { Navbar } from './components/layout/Navbar';
 import { HomePage } from './app/HomePage';
 import { GamePage } from './app/GamePage';
+import { ExhibitionPage } from './app/ExhibitionPage';
 import { AllGamesPage } from './app/AllGamesPage';
-import { SamplesPage } from './app/SamplesPage';
 import { LoginPage } from './app/LoginPage';
 import { WalletPage } from './app/WalletPage';
-import { useTournamentEngine } from './hooks/useTournamentEngine';
+import { useAuthStore } from './store/authStore';
 import { useTournamentStore } from './store/tournamentStore';
-import { deriveLiveState } from './lib/tournament';
+import { buildCupVM } from './lib/tournamentView';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -17,25 +17,34 @@ function ScrollToTop() {
   return null;
 }
 
-function TournamentEngine() {
-  useTournamentEngine();
-  return null;
-}
-
-/** `/game` with no id → the current live match. */
-function RedirectToLiveGame() {
-  const tournament = useTournamentStore(s => s.tournament);
+/** `/game` with no id → the current live match (cup) or the rolling feed. */
+function LiveGame() {
+  const snapshot = useTournamentStore(s => s.snapshot);
+  const league = useTournamentStore(s => s.league);
+  const startsAt = useTournamentStore(s => s.nextMatchStartsAtMs);
+  const offset = useTournamentStore(s => s.serverOffsetMs);
   const now = useTournamentStore(s => s.now);
-  const live = deriveLiveState(tournament, now);
-  const id = live.match?.id ?? tournament.matches[0].id;
-  return <Navigate to={`/game/${id}`} replace />;
+  useEffect(() => { useTournamentStore.getState().bind(); }, []);
+
+  if (snapshot) {
+    const vm = buildCupVM(snapshot, league, startsAt, now - offset);
+    const current = vm.matches.find(m => m.isCurrent) ?? vm.matches.find(m => m.phase !== 'completed');
+    if (current) return <Navigate to={`/game/${current.id}`} replace />;
+  }
+  return <ExhibitionPage />;
 }
 
 export default function App() {
+  useEffect(() => {
+    const auth = useAuthStore.getState();
+    auth.detectMiniPay();
+    auth.bindSocket();
+    useTournamentStore.getState().bind();
+  }, []);
+
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <TournamentEngine />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route
@@ -46,8 +55,7 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/games" element={<AllGamesPage />} />
-                <Route path="/samples" element={<SamplesPage />} />
-                <Route path="/game" element={<RedirectToLiveGame />} />
+                <Route path="/game" element={<LiveGame />} />
                 <Route path="/game/:matchId" element={<GamePage />} />
                 <Route path="/wallet" element={<WalletPage />} />
               </Routes>

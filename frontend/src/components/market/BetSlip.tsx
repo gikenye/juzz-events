@@ -1,31 +1,32 @@
-import type { Agent } from '../../types';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useMarketStore } from '../../store/marketStore';
+import { usePositionsStore } from '../../store/positionsStore';
 import { impliedOdds, potentialPayout } from '../../lib/odds';
 import { Button } from '../ui/Button';
-import { useNavigate } from 'react-router-dom';
+import type { SlotView } from './OddsDisplay';
 
-interface BetSlipProps {
-  agentA: Agent;
-  agentB: Agent;
-}
-
-export function BetSlip({ agentA, agentB }: BetSlipProps) {
-  const { user, balance, deductBalance } = useAuthStore();
-  const { selectedOutcome, stakeAmount, probabilities, isMarketOpen, betError, setStake, placeBet, bets, matchId } = useMarketStore();
+export function BetSlip({ outcomes }: { outcomes: SlotView[] }) {
+  const { user, balance, tradingToken } = useAuthStore();
+  const { selected, stakeAmount, slots, isMarketOpen, betError, pending, setStake, placeBet } = useMarketStore();
+  const openPositions = usePositionsStore(s => s.open);
   const navigate = useNavigate();
 
   const stake = parseFloat(stakeAmount) || 0;
-  const selectedAgent = selectedOutcome === 'a' ? agentA : selectedOutcome === 'b' ? agentB : null;
-  const selectedProb = selectedOutcome ? probabilities[selectedOutcome] : null;
-  const payout = selectedProb && stake > 0 ? potentialPayout(stake, impliedOdds(selectedProb)) : 0;
+  const view = selected ? outcomes.find(o => o.key === selected) ?? null : null;
+  const payout = view && stake > 0 ? potentialPayout(stake, impliedOdds(view.prob)) : 0;
 
+  const insufficient = !!tradingToken && stake > balance;
   const handlePlace = () => {
     if (!user) { navigate('/login'); return; }
-    placeBet(balance, deductBalance);
+    if (!tradingToken) { navigate('/wallet'); return; } // sign-in alone isn't a trading session
+    if (insufficient) { navigate('/wallet'); return; }  // route to Add money, not a dead end
+    placeBet();
   };
 
-  const matchBets = bets.filter(b => b.matchId === matchId);
+  // Open positions on this game's markets — the server is the bookkeeper.
+  const slotByMarket = new Map(slots.map(s => [s.marketId, s]));
+  const gamePositions = openPositions.filter(p => slotByMarket.has(p.market_id));
 
   return (
     <div className="bg-bg-card rounded-xl border border-border p-3 flex flex-col gap-3">
@@ -33,15 +34,15 @@ export function BetSlip({ agentA, agentB }: BetSlipProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h3 className="font-display text-ivory text-xs font-semibold uppercase tracking-wider">Your call</h3>
-          {!selectedAgent && (
+          {!view && (
             <span className="text-[11px] italic text-muted/60 tracking-wide">— pick a side above</span>
           )}
-          {selectedAgent && (
+          {view && (
             <span
               className="text-xs font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: selectedAgent.color + '33', color: selectedAgent.color }}
+              style={{ background: view.color + '33', color: view.color }}
             >
-              {selectedAgent.name}
+              {view.label}
             </span>
           )}
         </div>
@@ -81,11 +82,11 @@ export function BetSlip({ agentA, agentB }: BetSlipProps) {
             className="w-full bg-bg-surface border border-border rounded-lg pl-7 pr-3 py-2 text-ivory text-sm font-semibold outline-none focus:border-gold transition-colors placeholder:text-muted disabled:opacity-50"
           />
         </div>
-        {selectedProb && stake > 0 && (
+        {view && stake > 0 && (
           <div className="flex gap-3 shrink-0">
             <div className="text-right">
               <div className="text-xs text-muted">Odds</div>
-              <div className="text-sm font-semibold text-ivory">×{impliedOdds(selectedProb).toFixed(2)}</div>
+              <div className="text-sm font-semibold text-ivory">×{impliedOdds(view.prob).toFixed(2)}</div>
             </div>
             <div className="text-right">
               <div className="text-xs text-muted">To win</div>
@@ -102,25 +103,28 @@ export function BetSlip({ agentA, agentB }: BetSlipProps) {
         variant="gold"
         size="md"
         className="w-full"
-        disabled={!isMarketOpen || !selectedOutcome || !stakeAmount}
+        disabled={!isMarketOpen || !selected || !stakeAmount || pending}
         onClick={handlePlace}
       >
-        {!isMarketOpen ? 'Predictions Closed' : !user ? 'Login to Predict' : 'Lock In Prediction'}
+        {!isMarketOpen ? 'Predictions Closed'
+          : !user ? 'Login to Predict'
+          : !tradingToken ? 'Add Funds to Predict'
+          : pending ? 'Placing…' : 'Lock In Prediction'}
       </Button>
 
-      {/* This match's predictions */}
-      {matchBets.length > 0 && (
+      {/* This game's open positions (server truth) */}
+      {gamePositions.length > 0 && (
         <div className="border-t border-border pt-2">
           <p className="text-muted text-xs mb-1.5">Your predictions this match</p>
-          {matchBets.map(b => (
-            <div key={b.id} className="flex justify-between text-xs py-0.5">
-              <span className="text-ivory">{b.pick}</span>
-              <span className="text-muted">
-                ${b.stake.toFixed(2)}
-                {b.settled && (b.won ? <span className="text-green-400 ml-1">won</span> : <span className="text-red-400 ml-1">lost</span>)}
-              </span>
-            </div>
-          ))}
+          {gamePositions.map(p => {
+            const slot = slotByMarket.get(p.market_id)!;
+            return (
+              <div key={p.market_id} className="flex justify-between text-xs py-0.5">
+                <span className="text-ivory">{slot.label}</span>
+                <span className="text-muted">{p.yes_shares.toFixed(1)} shares</span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

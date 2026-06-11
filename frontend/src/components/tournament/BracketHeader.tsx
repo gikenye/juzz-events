@@ -1,7 +1,8 @@
-import { useTournamentStore } from '../../store/tournamentStore';
-import { getAgent } from '../../lib/agents';
-import { deriveLiveState, stageLabel } from '../../lib/tournament';
+import { getAgent, fallbackAgent } from '../../lib/agents';
+import type { CupVM } from '../../lib/tournamentView';
 import { AgentAvatar } from '../chess/AgentAvatar';
+
+const STAGE_LABEL = { quarter: 'Quarterfinals', semi: 'Semifinals', final: 'The Final' } as const;
 
 /** Four tiny chess squares — like a corner fragment of a board. */
 function ChessFragment() {
@@ -29,14 +30,12 @@ function ChessFragment() {
 }
 
 
-export function BracketHeader() {
-  const tournament = useTournamentStore(s => s.tournament);
-  const now = useTournamentStore(s => s.now);
-  const live = deriveLiveState(tournament, now);
-
-  const isChampion = live.phase === 'champion';
-  const champ = isChampion ? getAgent(tournament.champion) : null;
-  const stage = live.match?.stage ?? 'quarter';
+export function BracketHeader({ vm }: { vm: CupVM }) {
+  const isChampion = vm.phase === 'champion';
+  const champ = isChampion && vm.champion
+    ? getAgent(vm.champion) ?? fallbackAgent(vm.champion) : null;
+  const stage = vm.matches.find(m => m.isCurrent)?.stage
+    ?? vm.matches.find(m => m.phase !== 'completed')?.stage ?? 'quarter';
 
   return (
     <div
@@ -57,13 +56,13 @@ export function BracketHeader() {
             className="text-[10px] font-bold uppercase tracking-[0.22em] mb-0.5"
             style={{ color: '#C9A227' }}
           >
-            Live Tournament
+            {vm.name || 'Live Tournament'}
           </div>
           <h1
             className="font-display text-ivory font-bold leading-tight"
             style={{ fontSize: 'clamp(1.1rem, 4vw, 1.6rem)' }}
           >
-            {isChampion ? 'Champion Crowned' : stageLabel(stage)}
+            {isChampion ? 'Champion Crowned' : STAGE_LABEL[stage]}
           </h1>
         </div>
       </div>

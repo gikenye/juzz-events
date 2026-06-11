@@ -1,74 +1,47 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
 import { Button } from '../components/ui/Button';
 
 export function LoginPage() {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [repeatPassword, setRepeatPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showRepeatPassword, setShowRepeatPassword] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [step, setStep] = useState<'email' | 'otp'>('email');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // OTP step
-  const [step, setStep] = useState<'form' | 'otp'>('form');
-  const [otp, setOtp] = useState('');
-
-  const { login, register } = useAuthStore();
+  const { requestOtp, verifyOtp, isMiniPay, detectMiniPay } = useAuthStore();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: FormEvent) => {
+  useEffect(() => { detectMiniPay(); }, [detectMiniPay]);
+
+  const validEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+
+  const sendCode = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-
-    if (!email || !password) { setError('Please fill in all fields.'); return; }
-    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
-
-    if (mode === 'register') {
-      if (!repeatPassword) { setError('Please confirm your password.'); return; }
-      if (password !== repeatPassword) { setError('Passwords do not match.'); return; }
-    }
-
+    if (!validEmail) { setError('Enter a valid email.'); return; }
     setLoading(true);
     try {
-      if (mode === 'login') {
-        await login(email, password);
-        navigate('/game');
-      } else {
-        setStep('otp');
-      }
+      await requestOtp(email);
+      setStep('otp');
     } catch {
-      setError('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+      setError('Could not send the code. Try again.');
+    } finally { setLoading(false); }
   };
 
-  const handleOtpSubmit = async (e: FormEvent) => {
+  const verify = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     if (otp.length !== 6) { setError('Enter the 6-digit code.'); return; }
     setLoading(true);
     try {
-      await register(email, password);
+      await verifyOtp(email, otp);
       navigate('/game');
     } catch {
-      setError('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const switchMode = (m: 'login' | 'register') => {
-    setMode(m);
-    setError('');
-    setStep('form');
-    setOtp('');
-    setRepeatPassword('');
+      setError('That code is invalid or expired.');
+    } finally { setLoading(false); }
   };
 
   return (
@@ -82,11 +55,7 @@ export function LoginPage() {
         }}
       />
 
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative w-full max-w-md"
-      >
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="relative w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="font-display text-gold text-2xl font-bold tracking-widest">
             JUZZ<span className="text-ivory">.BET</span>
@@ -95,33 +64,18 @@ export function LoginPage() {
         </div>
 
         <div className="bg-bg-card border border-border rounded-2xl p-8 shadow-2xl">
-          {/* Mode toggle — hidden on OTP step */}
-          {step === 'form' && (
-            <div className="flex rounded-lg bg-bg-surface p-1 mb-6">
-              {(['login', 'register'] as const).map(m => (
-                <button
-                  key={m}
-                  onClick={() => switchMode(m)}
-                  className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
-                    mode === m ? 'bg-gold text-bg-base' : 'text-muted hover:text-ivory'
-                  }`}
-                >
-                  {m === 'login' ? 'Login' : 'Register'}
-                </button>
-              ))}
-            </div>
+          {isMiniPay && (
+            <button
+              onClick={() => navigate('/wallet')}
+              className="w-full mb-5 py-3 rounded-lg bg-gotham text-bg-base font-semibold text-sm hover:bg-gotham-light transition-colors"
+            >
+              Continue with MiniPay
+            </button>
           )}
 
           <AnimatePresence mode="wait">
-            {step === 'form' ? (
-              <motion.form
-                key="form"
-                initial={{ opacity: 0, x: -16 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 16 }}
-                onSubmit={handleSubmit}
-                className="flex flex-col gap-4"
-              >
+            {step === 'email' ? (
+              <motion.form key="email" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }} onSubmit={sendCode} className="flex flex-col gap-4">
                 <div>
                   <label className="block text-muted text-xs mb-1.5 uppercase tracking-wider">Email</label>
                   <input
@@ -131,81 +85,19 @@ export function LoginPage() {
                     placeholder="you@example.com"
                     className="w-full bg-bg-surface border border-border rounded-lg px-4 py-3 text-ivory outline-none focus:border-gold transition-colors placeholder:text-muted text-sm"
                     autoComplete="email"
+                    autoFocus
                   />
                 </div>
-                <div>
-                  <label className="block text-muted text-xs mb-1.5 uppercase tracking-wider">Password</label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-bg-surface border border-border rounded-lg px-4 py-3 pr-11 text-ivory outline-none focus:border-gold transition-colors placeholder:text-muted text-sm"
-                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ivory transition-colors"
-                      tabIndex={-1}
-                    >
-                      {showPassword ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {mode === 'register' && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                  >
-                    <label className="block text-muted text-xs mb-1.5 uppercase tracking-wider">Repeat Password</label>
-                    <div className="relative">
-                      <input
-                        type={showRepeatPassword ? 'text' : 'password'}
-                        value={repeatPassword}
-                        onChange={e => setRepeatPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full bg-bg-surface border border-border rounded-lg px-4 py-3 pr-11 text-ivory outline-none focus:border-gold transition-colors placeholder:text-muted text-sm"
-                        autoComplete="new-password"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowRepeatPassword(v => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ivory transition-colors"
-                        tabIndex={-1}
-                      >
-                        {showRepeatPassword ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                        )}
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
 
                 {error && <p className="text-red-400 text-sm">{error}</p>}
 
-                <Button type="submit" size="lg" className="w-full mt-2" loading={loading}>
-                  {mode === 'login' ? 'Login' : 'Create Account'}
+                <Button type="submit" size="lg" className="w-full mt-1" loading={loading}>
+                  Email me a code
                 </Button>
+
               </motion.form>
             ) : (
-              <motion.form
-                key="otp"
-                initial={{ opacity: 0, x: 16 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -16 }}
-                onSubmit={handleOtpSubmit}
-                className="flex flex-col gap-4"
-              >
+              <motion.form key="otp" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} onSubmit={verify} className="flex flex-col gap-4">
                 <div className="text-center mb-2">
                   <p className="text-ivory text-sm font-medium">Check your email</p>
                   <p className="text-muted text-xs mt-1">
@@ -213,32 +105,29 @@ export function LoginPage() {
                   </p>
                 </div>
 
-                <div>
-                  <label className="block text-muted text-xs mb-1.5 uppercase tracking-wider">Verification Code</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={otp}
-                    onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
-                    placeholder="000000"
-                    className="w-full bg-bg-surface border border-border rounded-lg px-4 py-3 text-ivory outline-none focus:border-gold transition-colors placeholder:text-muted text-sm text-center tracking-[0.5em] font-mono"
-                    autoFocus
-                  />
-                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otp}
+                  onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+                  placeholder="000000"
+                  className="w-full bg-bg-surface border border-border rounded-lg px-4 py-3 text-ivory outline-none focus:border-gold transition-colors placeholder:text-muted text-sm text-center tracking-[0.5em] font-mono"
+                  autoFocus
+                />
 
                 {error && <p className="text-red-400 text-sm">{error}</p>}
 
-                <Button type="submit" size="lg" className="w-full mt-2" loading={loading}>
-                  Verify & Create Account
+                <Button type="submit" size="lg" className="w-full mt-1" loading={loading}>
+                  Verify & continue
                 </Button>
 
                 <button
                   type="button"
-                  onClick={() => { setStep('form'); setError(''); setOtp(''); }}
+                  onClick={() => { setStep('email'); setError(''); setOtp(''); }}
                   className="text-muted text-sm hover:text-ivory transition-colors text-center"
                 >
-                  ← Back
+                  ← Use a different email
                 </button>
               </motion.form>
             )}

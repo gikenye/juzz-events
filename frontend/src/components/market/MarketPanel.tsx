@@ -1,21 +1,34 @@
-import type { Agent } from '../../types';
 import { useMarketStore } from '../../store/marketStore';
-import { OddsDisplay } from './OddsDisplay';
+import { useGameStore } from '../../store/gameStore';
+import { useTournamentStore } from '../../store/tournamentStore';
+import { getAgent } from '../../lib/agents';
+import { formatCountdown } from '../../lib/tournamentView';
+import { OddsDisplay, type SlotView } from './OddsDisplay';
 import { BetSlip } from './BetSlip';
 
-function formatTime(seconds: number) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
+const DRAW_COLOR = '#C9A227';
 
-interface MarketPanelProps {
-  agentA: Agent;
-  agentB: Agent;
-}
+const shortLabel = (label: string) => label.replace(/^Agent\s+/, '');
 
-export function MarketPanel({ agentA, agentB }: MarketPanelProps) {
-  const { isMarketOpen, timeRemaining, selectedOutcome, selectOutcome, probabilities } = useMarketStore();
+export function MarketPanel() {
+  const { isMarketOpen, slots, selected, selectOutcome } = useMarketStore();
+  const startsAtMs = useGameStore(s => s.startsAtMs);
+  const offset = useTournamentStore(s => s.serverOffsetMs);
+  const now = useTournamentStore(s => s.now);
+
+  const outcomes: SlotView[] = slots.map(s => ({
+    key: s.key,
+    label: shortLabel(s.label),
+    color: s.agentId ? (getAgent(s.agentId)?.color ?? DRAW_COLOR) : DRAW_COLOR,
+    prob: s.prob,
+  }));
+
+  // The backend has no betting deadline — the pre-match window is the headline,
+  // then a live open/closed chip.
+  const startsIn = startsAtMs ? startsAtMs + offset - now : 0;
+  const chip = !isMarketOpen ? 'Closed'
+    : startsIn > 0 ? `Open · starts in ${formatCountdown(startsIn)}`
+    : 'Open';
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -28,15 +41,15 @@ export function MarketPanel({ agentA, agentB }: MarketPanelProps) {
             : 'border-red-700 text-red-400 bg-red-900/20'
         }`}>
           <span className={`w-1.5 h-1.5 rounded-full ${isMarketOpen ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`} />
-          {isMarketOpen ? `Closes in ${formatTime(timeRemaining)}` : 'Closed'}
+          {chip}
         </div>
       </div>
 
       {/* Win-probability cards */}
-      <OddsDisplay agentA={agentA} agentB={agentB} probabilities={probabilities} onSelect={selectOutcome} selected={selectedOutcome} />
+      <OddsDisplay outcomes={outcomes} onSelect={selectOutcome} selected={selected} />
 
       {/* Prediction slip */}
-      <BetSlip agentA={agentA} agentB={agentB} />
+      <BetSlip outcomes={outcomes} />
     </div>
   );
 }

@@ -26,13 +26,23 @@ export function AgentAvatar({ agent, isActive = false, className }: AgentAvatarP
           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         />
       )}
-      <img
-        src={src}
-        alt={agent.name}
-        className="w-full h-full object-contain select-none"
-        draggable={false}
-        style={{ filter: isActive ? `drop-shadow(0 0 6px ${agent.color}aa)` : undefined }}
-      />
+      {src ? (
+        <img
+          src={src}
+          alt={agent.name}
+          className="w-full h-full object-contain select-none"
+          draggable={false}
+          style={{ filter: isActive ? `drop-shadow(0 0 6px ${agent.color}aa)` : undefined }}
+        />
+      ) : (
+        // Slug outside the branded roster — initials on the agent colour.
+        <div
+          className="w-full h-full rounded-full flex items-center justify-center font-display font-bold text-ivory select-none"
+          style={{ background: agent.color, fontSize: '45%' }}
+        >
+          {agent.name.replace(/^Agent\s+/i, '').slice(0, 2).toUpperCase()}
+        </div>
+      )}
     </div>
   );
 }
