@@ -4,8 +4,11 @@ node_modules/
 # Playwright test artifacts
 .playwright-mcp/
 
-# Claude Code internals
+# assistant/agent files — never public
 .sixth/
+.claude/
+.agents/
+CLAUDE.md
 
 # Dev screenshots / local resources
 resources/
