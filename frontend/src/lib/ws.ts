@@ -6,6 +6,7 @@
 // instead of going stale. A heartbeat ping keeps it under the ~5min idle timeout.
 import { WS_URL } from './config';
 import type {
+  TournamentSnapshot, TournamentEvent,
   GameSummary, GameSnapshot, GameEvent, MarketSummary, MarketEvent,
   TradeConfirmed, UserEvent, Side, WsError,
 } from './types';
@@ -19,6 +20,8 @@ type Inbound =
   | { type: 'market_event'; event: MarketEvent }
   | TradeConfirmed
   | { type: 'user_event'; event: UserEvent }
+  | { type: 'tournament_subscribed'; snapshot: TournamentSnapshot }
+  | { type: 'tournament_event'; event: TournamentEvent }
   | WsError
   | { type: 'pong' }
   | { type: string; [k: string]: unknown };
@@ -35,6 +38,8 @@ interface Events {
   market_event: MarketEvent;
   trade_confirmed: TradeConfirmed;
   user_event: UserEvent;
+  tournament_subscribed: TournamentSnapshot;
+  tournament_event: TournamentEvent;
   error: WsError;
 }
 
@@ -57,6 +62,7 @@ export class JuzzSocket {
   private gameSub: { game_id: string; since_seq: number } | null = null;
   private marketSub: string | null = null;
   private userSub = false;
+  private tournamentSub = false;
 
   private handlers = new Map<keyof Events, Set<(p: unknown) => void>>();
 
@@ -94,6 +100,7 @@ export class JuzzSocket {
       if (this.gameSub) this.raw({ type: 'subscribe', game_id: this.gameSub.game_id, since_seq: this.gameSub.since_seq });
       if (this.marketSub) this.raw({ type: 'subscribe_market', market_id: this.marketSub });
       if (this.userSub) this.raw({ type: 'subscribe_user' });
+      if (this.tournamentSub) this.raw({ type: 'subscribe_tournament' });
       this.startHeartbeat();
     };
 
@@ -126,6 +133,8 @@ export class JuzzSocket {
       case 'market_event': return this.emit('market_event', (msg as { event: MarketEvent }).event);
       case 'trade_confirmed': return this.emit('trade_confirmed', msg as TradeConfirmed);
       case 'user_event': return this.emit('user_event', (msg as { event: UserEvent }).event);
+      case 'tournament_subscribed': return this.emit('tournament_subscribed', (msg as { snapshot: TournamentSnapshot }).snapshot);
+      case 'tournament_event': return this.emit('tournament_event', (msg as { event: TournamentEvent }).event);
       case 'pong': return;
       case 'error': {
         const err = msg as WsError;
@@ -152,6 +161,9 @@ export class JuzzSocket {
   unsubscribeMarket() { this.marketSub = null; this.raw({ type: 'unsubscribe_market' }); }
 
   subscribeUser() { this.userSub = true; this.raw({ type: 'subscribe_user' }); }
+
+  subscribeTournament() { this.tournamentSub = true; this.raw({ type: 'subscribe_tournament' }); }
+  unsubscribeTournament() { this.tournamentSub = false; this.raw({ type: 'unsubscribe_tournament' }); }
 
   trade(kind: 'buy' | 'sell', marketId: string, shares: number, side: Side) {
     this.raw({ type: kind, market_id: marketId, shares, side });

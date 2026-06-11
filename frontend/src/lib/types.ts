@@ -16,6 +16,7 @@ export interface GameSummary {
   id: string;
   game_type: GameType;
   time_control: string; // "3+0"
+  starts_at_ms?: number; // future during the pre-match countdown
   move_number: number;
   clocks_ms: [number, number];
   players: Player[];
@@ -23,6 +24,7 @@ export interface GameSummary {
 }
 
 export interface GameSnapshot extends GameSummary {
+  now_ms?: number; // server time at snapshot — seeds the clock offset
   last_signal?: PositionSignal | null;
 }
 
@@ -41,9 +43,9 @@ export type GameResult =
 
 // GameEvent — serde-tagged by `type`. Shared: seq, game_type, clocks_ms, move_number, state.
 export type GameEvent =
-  | ({ type: 'started' } & GameEventBase & { players?: Player[]; time_control?: string })
+  | ({ type: 'started' } & GameEventBase & { players?: Player[]; time_control?: string; starts_at_ms?: number })
   | ({ type: 'move_played' } & GameEventBase & { notation: string; signal?: PositionSignal })
-  | { type: 'engine_error'; seq: number; code: string; message: string }
+  | { type: 'engine_error'; seq: number; code: string; message: string; ts_ms?: number }
   | ({ type: 'game_over' } & GameEventBase & { result: GameResult; total_moves?: number });
 
 interface GameEventBase {
@@ -52,6 +54,7 @@ interface GameEventBase {
   move_number: number;
   clocks_ms: [number, number];
   state: string;
+  ts_ms?: number; // server wall ms — drives the client clock offset
 }
 
 export interface MarketSummary {
@@ -75,6 +78,59 @@ export type MarketEvent =
   | { type: 'voided'; market_id: string; resolved: boolean };
 
 export type Side = 'yes' | 'no';
+
+export interface TournamentMatch {
+  a: string;
+  b: string;
+  games: string[];
+  winner: string | null;
+}
+
+export interface TournamentSnapshot {
+  id: string;
+  name: string;
+  game_type: GameType;
+  time_control: string;
+  status: { state: 'live' } | { state: 'complete'; champion: string };
+  rounds: { name: string; matches: TournamentMatch[] }[];
+  current: { round: number; match_index: number } | null;
+}
+
+export type TournamentEvent =
+  | { type: 'tournament_match_started'; round: number; round_name: string; match_index: number;
+      game_id: string; white: string; black: string; rematch: boolean; starts_at_ms: number }
+  | { type: 'tournament_match_decided'; round: number; match_index: number; winner: string }
+  | { type: 'tournament_round_complete'; round: number }
+  | { type: 'tournament_complete'; champion: string };
+
+export interface StandingRow {
+  agent_id: string;
+  name: string;
+  points: number;
+  tournaments: number;
+  titles: number;
+}
+
+export interface LeagueOverview {
+  season: number;
+  now_ms: number;
+  next_tournament_at_ms: number | null;
+  last_champion: string | null;
+  last_final_game: string | null;
+  tournament: TournamentSnapshot | null;
+  standings: StandingRow[];
+}
+
+export interface GameReplay {
+  id: string;
+  game_type: GameType;
+  time_control: string;
+  players: Player[];
+  result: GameResult;
+  total_moves: number;
+  ended_ms: number;
+  moves: { n: number; notation: string; state: string; clocks_ms: number[] }[];
+}
 
 export interface TradeConfirmed {
   type: 'trade_confirmed';
