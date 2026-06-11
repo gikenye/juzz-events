@@ -1,4 +1,4 @@
-// e2e: live markets for the current chess game + the trade guard. Network-dependent.
+// e2e: live market slots for the current chess game + the trade guard. Network-dependent.
 import { describe, it, expect } from 'vitest';
 import { useGameStore } from './gameStore';
 import { useMarketStore } from './marketStore';
@@ -16,27 +16,28 @@ function until(pred: () => boolean, ms: number): Promise<boolean> {
 }
 
 describe('live markets e2e', () => {
-  it('loads the 3 system markets and rejects a spectator trade', async () => {
+  it('builds outcome slots and rejects a spectator trade', async () => {
     useGameStore.getState().start();
     useMarketStore.getState().bind();
 
-    const ready = await until(() => {
-      const m = useMarketStore.getState().markets;
-      return !!(m.maxi && m.gotham && m.draw);
-    }, 25_000);
+    // 2 slots for a tournament match, 3 for an exhibition game.
+    const ready = await until(() => useMarketStore.getState().slots.length >= 2, 25_000);
     if (!ready) { useMarketStore.getState().unbind(); useGameStore.getState().stop(); socket.close(); return; }
 
     const ms = useMarketStore.getState();
-    expect(ms.markets.gotham?.question.toLowerCase()).toContain('white');
-    const p = ms.probabilities;
-    expect(p.maxi + p.draw + p.gotham).toBeCloseTo(1, 5);
+    expect(ms.slots.length).toBe(ms.mode === 'match' ? 2 : 3);
+    const total = ms.slots.reduce((s, x) => s + x.prob, 0);
+    expect(total).toBeCloseTo(1, 5);
     expect(ms.isMarketOpen).toBe(true);
+    if (ms.mode === 'exhibition') {
+      expect(ms.slots.map(s => s.key)).toEqual(['a', 'b', 'draw']);
+    }
 
     // A spectator (no trading session) buy must be rejected by the backend.
-    const market = ms.markets.gotham!;
+    const market = ms.slots[0];
     const err = await new Promise<WsError | null>((resolve) => {
       const off = socket.on('error', (e) => { off(); resolve(e); });
-      socket.trade('buy', market.market_id, 1, 'yes');
+      socket.trade('buy', market.marketId, 1, 'yes');
       setTimeout(() => { off(); resolve(null); }, 10_000);
     });
     expect(err?.code).toBe('WALLET_REQUIRED');

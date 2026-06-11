@@ -19,6 +19,22 @@ export function getAgent(id: string | null | undefined): Agent | null {
   return id ? AGENT_MAP[id] ?? null : null;
 }
 
+/** Degrade gracefully for slugs outside the branded roster (e.g. a backend
+ *  that predates the rebrand): deterministic colour, neutral icon. */
+export function fallbackAgent(id: string, name?: string): Agent {
+  const known = AGENT_MAP[id];
+  if (known) return known;
+  const hue = [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0) % 360;
+  return {
+    id,
+    name: name ?? id,
+    color: `hsl(${hue}, 55%, 55%)`,
+    colorLight: `hsl(${hue}, 65%, 70%)`,
+    elo: 3000,
+    icon: 'atlas',
+  };
+}
+
 // Per-icon avatar styling. Maxi & Gotham preserve their original approved look;
 // the rest use a consistent light-gradient + dark-icon scheme.
 export interface AvatarConfig {
@@ -39,3 +55,8 @@ export const AVATAR_CONFIG: Record<AgentIconKey, AvatarConfig> = {
   nyx:    { bgFrom: '#8C9BF0', bgTo: '#3F4FC0', iconColor: '#0B1240', lensColor: '#DFE4FF', glowColor: '#5B6EE080' },
   cipher: { bgFrom: '#E07ADB', bgTo: '#9E3399', iconColor: '#350533', lensColor: '#FBD7F8', glowColor: '#C44FBF80' },
 };
+
+/** Standard Elo expectation for the pre-match preview odds. */
+export function eloExpected(eloA: number, eloB: number): number {
+  return 1 / (1 + Math.pow(10, (eloB - eloA) / 400));
+}

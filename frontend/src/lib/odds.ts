@@ -1,11 +1,6 @@
-import type { Odds, Probabilities } from '../types';
-
-export function probabilitiesToOdds(probs: Probabilities): Odds {
-  return {
-    maxi: +(1 / probs.maxi).toFixed(2),
-    draw: +(1 / probs.draw).toFixed(2),
-    gotham: +(1 / probs.gotham).toFixed(2),
-  };
+/** Decimal odds implied by a win probability. */
+export function impliedOdds(prob: number): number {
+  return +(1 / Math.max(prob, 0.01)).toFixed(2);
 }
 
 export function potentialPayout(stake: number, odds: number): number {

@@ -111,6 +111,11 @@ export interface StandingRow {
   titles: number;
 }
 
+export interface FuturesRow {
+  agent_id: string;
+  market: MarketSummary;
+}
+
 export interface LeagueOverview {
   season: number;
   now_ms: number;
@@ -119,6 +124,10 @@ export interface LeagueOverview {
   last_final_game: string | null;
   tournament: TournamentSnapshot | null;
   standings: StandingRow[];
+  // Next cup, between cups only (absent on older backends).
+  upcoming?: { name: string; seeds: string[]; starts_at_ms: number } | null;
+  // "Will {agent} win the next cup?" markets (absent on older backends).
+  futures?: FuturesRow[] | null;
 }
 
 export interface GameReplay {
