@@ -16,11 +16,15 @@ export function MarketPanel() {
   const offset = useTournamentStore(s => s.serverOffsetMs);
   const now = useTournamentStore(s => s.now);
 
-  const outcomes: SlotView[] = slots.map(s => ({
+  // Two-outcome design: the draw market stays open server-side but is not a
+  // visible pick — display probabilities renormalize over the two agents.
+  const pair = slots.filter(s => s.key !== 'draw');
+  const pairSum = pair.reduce((t, s) => t + s.prob, 0) || 1;
+  const outcomes: SlotView[] = pair.map(s => ({
     key: s.key,
     label: shortLabel(s.label),
     color: s.agentId ? (getAgent(s.agentId)?.color ?? DRAW_COLOR) : DRAW_COLOR,
-    prob: s.prob,
+    prob: s.prob / pairSum,
   }));
 
   // The backend has no betting deadline — the pre-match window is the headline,

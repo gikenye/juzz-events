@@ -31,7 +31,7 @@ export function getAgent(id: string | null | undefined): Agent | null {
 /** Degrade gracefully for slugs outside the branded roster (e.g. a backend
  *  that predates the rebrand): deterministic colour, neutral icon. */
 export function fallbackAgent(id: string, name?: string): Agent {
-  const known = AGENT_MAP[id];
+  const known = getAgent(id);
   if (known) return known;
   const hue = [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0) % 360;
   return {
