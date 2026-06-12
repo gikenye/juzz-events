@@ -12,6 +12,7 @@ const STAGE_LONG: Record<MatchVM['stage'], string> = {
 };
 
 function longLabel(m: MatchVM): string {
+  if (m.code === 'LIVE') return 'Exhibition match';
   return m.stage === 'final' ? STAGE_LONG.final : `${STAGE_LONG[m.stage]} ${m.matchIndex + 1}`;
 }
 

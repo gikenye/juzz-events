@@ -132,3 +132,50 @@ export function formatCountdown(ms: number): string {
   if (m >= 60) return `${Math.floor(m / 60)}h ${m % 60}m`;
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
+
+// ── Pre-league adapters: render leakey's bracket page on whatever exists ──
+
+/** The live exhibition game as a featured MatchVM (a = white seat). */
+export function exhibitionMatchVM(
+  white: { agent_id: string } | null,
+  black: { agent_id: string } | null,
+  gameId: string | null,
+  finished: boolean,
+): MatchVM {
+  return {
+    id: 'live', round: 0, matchIndex: 0, stage: 'quarter', code: 'LIVE',
+    aId: white?.agent_id ?? null, bId: black?.agent_id ?? null,
+    phase: finished ? 'completed' : 'live',
+    gameId, winnerId: null, isCurrent: true,
+  };
+}
+
+/** The next cup's frozen seeds as an upcoming bracket (pairs in order). */
+export function upcomingCupVM(league: LeagueOverview | null): CupVM | null {
+  const up = league?.upcoming;
+  if (!up || up.seeds.length !== 8) return null;
+  const matches: MatchVM[] = [];
+  for (let i = 0; i < 4; i++) {
+    matches.push({
+      id: `up-r0m${i}`, round: 0, matchIndex: i, stage: 'quarter', code: code(0, i),
+      aId: up.seeds[i * 2], bId: up.seeds[i * 2 + 1],
+      phase: 'upcoming', gameId: null, winnerId: null, isCurrent: false,
+    });
+  }
+  for (let i = 0; i < 2; i++) {
+    matches.push({
+      id: `up-r1m${i}`, round: 1, matchIndex: i, stage: 'semi', code: code(1, i),
+      aId: null, bId: null, sourceA: code(0, i * 2), sourceB: code(0, i * 2 + 1),
+      phase: 'upcoming', gameId: null, winnerId: null, isCurrent: false,
+    });
+  }
+  matches.push({
+    id: 'up-r2m0', round: 2, matchIndex: 0, stage: 'final', code: code(2, 0),
+    aId: null, bId: null, sourceA: code(1, 0), sourceB: code(1, 1),
+    phase: 'upcoming', gameId: null, winnerId: null, isCurrent: false,
+  });
+  return {
+    cupId: 'upcoming', name: up.name, phase: 'gap', matches,
+    champion: null, nextCupAtMs: league?.next_tournament_at_ms ?? null, startsAtMs: 0,
+  };
+}

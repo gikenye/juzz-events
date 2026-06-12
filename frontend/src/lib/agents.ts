@@ -15,8 +15,17 @@ export const AGENTS: Agent[] = [
 
 const AGENT_MAP: Record<string, Agent> = Object.fromEntries(AGENTS.map(a => [a.id, a]));
 
+// Pre-rebrand backend slugs → branded agents (kept until the rename deploys,
+// harmless after: the new slugs hit AGENT_MAP directly).
+const LEGACY: Record<string, string> = {
+  'the-surgeon': 'maxi', 'tals-ghost': 'gotham', 'the-grinder': 'atlas',
+  'coin-flip-carl': 'vega', 'the-professor': 'talos', 'iron-wall': 'orion',
+  'gambit-queen': 'nyx', 'the-metronome': 'cipher',
+};
+
 export function getAgent(id: string | null | undefined): Agent | null {
-  return id ? AGENT_MAP[id] ?? null : null;
+  if (!id) return null;
+  return AGENT_MAP[id] ?? AGENT_MAP[LEGACY[id]] ?? null;
 }
 
 /** Degrade gracefully for slugs outside the branded roster (e.g. a backend
