@@ -54,7 +54,7 @@ export function BetSlip({ outcomes }: { outcomes: SlotView[] }) {
 
       {/* Quick amounts */}
       <div className="flex gap-1.5">
-        {[1, 2, 5, 10].map(amt => {
+        {[0.5, 1, 2, 5].map(amt => {
           const active = parseFloat(stakeAmount) === amt;
           return (
             <button

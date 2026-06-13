@@ -353,13 +353,16 @@ function SendPanel({ sendable, gasOwed, payoutIn, isMiniPay, tradingToken, login
 }
 
 // ── MiniPay deposit form (shared: first-funding page + funded Add money panel) ─
+const MIN_DEPOSIT = 0.2; // low bar so MiniPay users with <$1 can still get in
+
 function MiniPayDepositForm() {
   const { setTradingSession, chainBalances, walletAddress, connectInjected, refreshChainBalances } = useAuthStore();
-  const [amt, setAmt]     = useState(2);
+  const [amt, setAmt]     = useState('1');   // string for smooth decimal entry
   const [asset, setAsset] = useState<AssetSymbol>('USDm');
   const [step, setStep]   = useState<string>();
   const [busy, setBusy]   = useState(false);
   const [err, setErr]     = useState<string>();
+  const n = parseFloat(amt) || 0;
 
   // Detect what they hold up front and default to their richest stablecoin —
   // these users are guaranteed to have one of the three.
@@ -389,7 +392,7 @@ function MiniPayDepositForm() {
       const account = await connectWallet();
       const secret = newSecret();
       setStep('Confirm in your wallet…');
-      await depositFromWallet(account, a, BigInt(toTokenBase(amt, a.decimals)), commitmentOf(secret));
+      await depositFromWallet(account, a, BigInt(toTokenBase(n, a.decimals)), commitmentOf(secret));
       setStep('Confirming on Celo…');
       const sess = await pollSession(secret);
       setTradingSession(sess.token, sess.wallet);
@@ -397,7 +400,8 @@ function MiniPayDepositForm() {
     setBusy(false);
   };
 
-  const over = held !== null && amt > held;
+  const over     = held !== null && n > held;
+  const tooSmall = n < MIN_DEPOSIT;
 
   return (
     <div className="flex flex-col gap-3">
@@ -417,27 +421,29 @@ function MiniPayDepositForm() {
 
       <div className="flex items-center gap-2 bg-bg-base border border-border rounded-lg px-3 py-2 focus-within:border-gold transition-colors">
         <span className="text-gold text-xl font-semibold">$</span>
-        <input type="number" inputMode="decimal" min={1} step={1} value={amt} disabled={busy}
-          onChange={e => setAmt(Math.max(1, Number(e.target.value) || 1))}
+        <input type="number" inputMode="decimal" min={MIN_DEPOSIT} step={0.1} value={amt} disabled={busy}
+          onChange={e => setAmt(e.target.value)}
           className="flex-1 bg-transparent text-ivory text-xl font-semibold outline-none w-full disabled:opacity-40" />
-        {held !== null && (
-          <button onClick={() => setAmt(Math.floor(held))} disabled={busy || held < 1}
+        {held !== null && held >= MIN_DEPOSIT && (
+          <button onClick={() => setAmt(held.toFixed(2))} disabled={busy}
             className="text-xs text-gold font-semibold shrink-0 disabled:opacity-30">MAX</button>
         )}
       </div>
 
       <div className="flex gap-2">
-        {[1, 2, 5, 10].map(p => (
-          <button key={p} onClick={() => setAmt(p)} disabled={busy}
+        {[0.2, 0.5, 1, 5].map(p => (
+          <button key={p} onClick={() => setAmt(String(p))} disabled={busy}
             className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-30 ${
-              amt === p ? 'border-gold text-gold bg-gold/10' : 'border-border text-ivory hover:border-gold'}`}>
+              n === p ? 'border-gold text-gold bg-gold/10' : 'border-border text-ivory hover:border-gold'}`}>
             ${p}
           </button>
         ))}
       </div>
 
-      <Button onClick={deposit} loading={busy} disabled={over} className="w-full">
-        {over ? `Only $${held!.toFixed(2)} in ${asset}` : `Deposit $${amt} in ${asset}`}
+      <Button onClick={deposit} loading={busy} disabled={over || tooSmall} className="w-full">
+        {over ? `Only $${held!.toFixed(2)} in ${asset}`
+          : tooSmall ? `Minimum $${MIN_DEPOSIT.toFixed(2)}`
+          : `Deposit $${n} in ${asset}`}
       </Button>
       {step && <p className="text-gold text-sm">{step}</p>}
       {err  && <p className="text-red-400 text-sm">{err}</p>}

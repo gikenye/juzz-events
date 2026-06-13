@@ -6,7 +6,7 @@ import { useMarketStore } from '../store/marketStore';
 import { usePositionsStore } from '../store/positionsStore';
 import { fallbackAgent } from '../lib/agents';
 import { useLiveClocks } from '../lib/useLiveClocks';
-import { useBotBanter } from '../hooks/useBotBanter';
+import { useServerTaunt } from '../hooks/useServerTaunt';
 import { ChessBoard } from '../components/chess/ChessBoard';
 import { AgentCard } from '../components/chess/AgentCard';
 import { MarketPanel } from '../components/market/MarketPanel';
@@ -16,10 +16,8 @@ import { BattleBackdrop, GlassPanel } from '../components/layout/BattleBackdrop'
 export function ExhibitionPage() {
   const gameId = useGameStore(s => s.gameId);
   const fen = useGameStore(s => s.fen);
-  const moveNumber = useGameStore(s => s.moveNumber);
   const captured = useGameStore(s => s.capturedPieces);
   const isFinished = useGameStore(s => s.isFinished);
-  const result = useGameStore(s => s.result);
   const players = useGameStore(s => s.players);
   const waiting = useGameStore(s => s.waiting);
   const clocks = useLiveClocks();
@@ -34,14 +32,8 @@ export function ExhibitionPage() {
   const black = players.black ? fallbackAgent(players.black.agent_id, players.black.name) : null;
   const turn = fen.split(' ')[1];
 
-  // Winning seat from the result (a = white seat, b = black seat).
-  const winnerSeat = result === 'white_wins' || result === 'black_timeout' ? 'a'
-    : result === 'black_wins' || result === 'white_timeout' ? 'b' : null;
-
-  const banter = useBotBanter({
-    gameId, moveNumber, fen, turn, finished: isFinished, winnerSeat,
-    whiteAgentId: white?.id ?? '', blackAgentId: black?.id ?? '',
-  });
+  // Live trash talk — server-authored, broadcast to every viewer.
+  const taunt = useServerTaunt(gameId);
 
   return (
     <BattleBackdrop>
@@ -55,11 +47,11 @@ export function ExhibitionPage() {
               <div className="flex flex-col gap-1.5">
                 <AgentCard agent={black} isActive={turn === 'b' && !isFinished}
                            capturedPieces={captured.byBlack} capturedIsWhite clockMs={clocks.black}
-                           taunt={banter?.speaker === 'b' ? banter.text : null} />
+                           taunt={taunt?.seat === 'black' ? taunt.text : null} />
                 <ChessBoard />
                 <AgentCard agent={white} isActive={turn === 'w' && !isFinished}
                            capturedPieces={captured.byWhite} clockMs={clocks.white}
-                           taunt={banter?.speaker === 'a' ? banter.text : null} />
+                           taunt={taunt?.seat === 'white' ? taunt.text : null} />
               </div>
             </GlassPanel>
             <div className="lg:sticky lg:top-20 lg:self-start">
