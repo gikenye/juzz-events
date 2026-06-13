@@ -42,7 +42,7 @@ export function WalletPage() {
 
   return (
     <div className="min-h-screen bg-bg-base">
-      <div className="max-w-lg mx-auto px-4 py-10">
+      <div className="max-w-lg mx-auto px-4 pt-24 pb-10">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           {body}
         </motion.div>

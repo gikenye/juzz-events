@@ -31,7 +31,8 @@ export function BattleBackdrop({ children }: { children: React.ReactNode }) {
           background: 'linear-gradient(to bottom, rgba(30,2,2,0.55) 0%, rgba(6,0,0,0.80) 60%, rgba(2,0,0,0.92) 100%)',
         }}
       />
-      <div className="relative">{children}</div>
+      {/* pt-20 clears the floating glass navbar (fixed top-4) */}
+      <div className="relative pt-20">{children}</div>
     </motion.div>
   );
 }
