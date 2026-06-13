@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { useTournamentStore } from '../store/tournamentStore';
 import { useMarketStore } from '../store/marketStore';
 import { useGameStore } from '../store/gameStore';
@@ -8,6 +7,7 @@ import {
 } from '../lib/tournamentView';
 import { BracketHeader } from '../components/tournament/BracketHeader';
 import { MatchCard } from '../components/tournament/MatchCard';
+import { BattleBackdrop } from '../components/layout/BattleBackdrop';
 
 function SectionDivider({ label }: { label: string }) {
   return (
@@ -74,33 +74,8 @@ export function AllGamesPage() {
   const completed = vm.matches.filter(m => m.phase === 'completed' && m.id !== featured.id);
 
   return (
-    <motion.div
-      className="min-h-screen relative overflow-x-hidden"
-      style={{ backgroundColor: '#080000' }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4 }}
-    >
-      {/* Battle Eve — chess pawns in red light (photo by Chris F, Pexels) */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: 'url(https://images.pexels.com/photos/8331411/pexels-photo-8331411.jpeg?auto=compress&cs=tinysrgb&w=1920)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center 50%',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'fixed',
-        }}
-      />
-      {/* Gradient overlay — preserves the red warmth, darkens for readability */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: 'linear-gradient(to bottom, rgba(30,2,2,0.55) 0%, rgba(6,0,0,0.80) 60%, rgba(2,0,0,0.92) 100%)',
-        }}
-      />
-
-      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-8">
+    <BattleBackdrop>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-8">
         <BracketHeader vm={vm} />
 
         {/* Featured / current game */}
@@ -129,6 +104,6 @@ export function AllGamesPage() {
           </div>
         )}
       </div>
-    </motion.div>
+    </BattleBackdrop>
   );
 }

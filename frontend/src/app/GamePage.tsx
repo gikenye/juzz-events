@@ -1,6 +1,7 @@
 // One match's arena: live board + market when it plays, replayed final
 // position when done, feeder view while TBD. Everything is server truth —
 // the match identity is a bracket position (stable across draw rematches).
+// Shares the Battle Eve backdrop + glass card language with /games.
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useParams, Navigate, Link } from 'react-router-dom';
@@ -20,6 +21,7 @@ import { MarketPanel } from '../components/market/MarketPanel';
 import { OddsDisplay, type SlotView } from '../components/market/OddsDisplay';
 import { SettlementBanner } from '../components/market/SettlementBanner';
 import { Countdown } from '../components/tournament/Countdown';
+import { BattleBackdrop, GlassPanel } from '../components/layout/BattleBackdrop';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -68,24 +70,26 @@ export function GamePage() {
   if (!agentA || !agentB) {
     return (
       <ArenaShell title={`${vm.name} · ${match.code}`}>
-        <div className="flex items-center justify-center gap-6 py-10 text-center">
-          <TbdSlot label={`Winner of ${match.sourceA ?? '—'}`} />
-          <span className="text-muted font-display text-xl">vs</span>
-          <TbdSlot label={`Winner of ${match.sourceB ?? '—'}`} />
-        </div>
-        <p className="text-center text-muted text-sm">
-          The two players are decided once the feeder matches finish.
-        </p>
+        <GlassPanel className="max-w-lg mx-auto">
+          <div className="flex items-center justify-center gap-6 py-8 text-center">
+            <TbdSlot label={`Winner of ${match.sourceA ?? '—'}`} />
+            <span className="text-muted font-display text-xl">vs</span>
+            <TbdSlot label={`Winner of ${match.sourceB ?? '—'}`} />
+          </div>
+          <p className="text-center text-muted text-sm">
+            The two players are decided once the feeder matches finish.
+          </p>
+        </GlassPanel>
       </ArenaShell>
     );
   }
 
   if (match.phase === 'live' || match.phase === 'countdown') {
-    return <LiveArena match={match} agentA={agentA} agentB={agentB}
+    return <LiveArena match={match} cupName={vm.name} agentA={agentA} agentB={agentB}
                       countdownTarget={match.phase === 'countdown' ? vm.startsAtMs + offset : 0} />;
   }
   if (match.phase === 'completed') {
-    return <CompletedArena vm={{ name: vm.name }} match={match} agentA={agentA} agentB={agentB} />;
+    return <CompletedArena cupName={vm.name} match={match} agentA={agentA} agentB={agentB} />;
   }
 
   // ── Upcoming with known participants ──
@@ -96,22 +100,24 @@ export function GamePage() {
   ];
   return (
     <ArenaShell title={`${vm.name} · ${match.code}`}>
-      <div className="flex flex-col gap-1.5 max-w-[460px] mx-auto">
-        <AgentCard agent={agentB} isActive={false} />
-        <ChessBoard fen={START_FEN} />
-        <AgentCard agent={agentA} isActive={false} />
-      </div>
-      <div className="max-w-[460px] mx-auto mt-4">
-        <p className="text-center text-muted text-xs uppercase tracking-widest mb-2">Pre-match win chance</p>
-        <OddsDisplay outcomes={preview} readOnly />
-      </div>
+      <GlassPanel className="max-w-[480px] mx-auto">
+        <div className="flex flex-col gap-1.5">
+          <AgentCard agent={agentB} isActive={false} />
+          <ChessBoard fen={START_FEN} />
+          <AgentCard agent={agentA} isActive={false} />
+        </div>
+        <div className="mt-4">
+          <p className="text-center text-muted text-xs uppercase tracking-widest mb-2">Pre-match win chance</p>
+          <OddsDisplay outcomes={preview} readOnly />
+        </div>
+      </GlassPanel>
     </ArenaShell>
   );
 }
 
 // ── Live (or pre-game countdown) ──────────────────────────────────────────
-function LiveArena({ match, agentA, agentB, countdownTarget }: {
-  match: MatchVM; agentA: Agent; agentB: Agent; countdownTarget: number;
+function LiveArena({ match, cupName, agentA, agentB, countdownTarget }: {
+  match: MatchVM; cupName: string; agentA: Agent; agentB: Agent; countdownTarget: number;
 }) {
   const fen = useGameStore(s => s.fen);
   const captured = useGameStore(s => s.capturedPieces);
@@ -127,12 +133,12 @@ function LiveArena({ match, agentA, agentB, countdownTarget }: {
     ? (match.winnerId === agentA.id ? agentA : agentB) : null;
 
   return (
-    <motion.div className="min-h-screen bg-bg-base" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-        <SettlementBanner />
-        {winner && <WinnerBanner name={winner.name} detail={result ? RESULT_TEXT[result] : undefined} />}
-        {countdownTarget > 0 && <CountdownBanner target={countdownTarget} />}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+    <ArenaShell title={`${cupName} · ${match.code}`}>
+      <SettlementBanner />
+      {winner && <WinnerBanner name={winner.name} detail={result ? RESULT_TEXT[result] : undefined} />}
+      {countdownTarget > 0 && <CountdownBanner target={countdownTarget} />}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+        <GlassPanel>
           <div className="flex flex-col gap-1.5">
             <AgentCard agent={blackAgent} isActive={turn === 'b' && !isFinished}
                        capturedPieces={captured.byBlack} capturedIsWhite />
@@ -140,18 +146,20 @@ function LiveArena({ match, agentA, agentB, countdownTarget }: {
             <AgentCard agent={whiteAgent} isActive={turn === 'w' && !isFinished}
                        capturedPieces={captured.byWhite} />
           </div>
-          <div className="lg:sticky lg:top-20 lg:self-start">
+        </GlassPanel>
+        <div className="lg:sticky lg:top-20 lg:self-start">
+          <GlassPanel>
             <MarketPanel />
-          </div>
+          </GlassPanel>
         </div>
       </div>
-    </motion.div>
+    </ArenaShell>
   );
 }
 
 // ── Completed: replayed final position ────────────────────────────────────
-function CompletedArena({ vm, match, agentA, agentB }: {
-  vm: { name: string }; match: MatchVM; agentA: Agent; agentB: Agent;
+function CompletedArena({ cupName, match, agentA, agentB }: {
+  cupName: string; match: MatchVM; agentA: Agent; agentB: Agent;
 }) {
   const [finalFen, setFinalFen] = useState<string | null>(null);
   useEffect(() => {
@@ -165,13 +173,15 @@ function CompletedArena({ vm, match, agentA, agentB }: {
   const caps = useMemo(() => capturedFromFen(finalFen ?? START_FEN), [finalFen]);
 
   return (
-    <ArenaShell title={`${vm.name} · ${match.code}`}>
+    <ArenaShell title={`${cupName} · ${match.code}`}>
       <WinnerBanner name={winner.name} />
-      <div className="flex flex-col gap-1.5 max-w-[460px] mx-auto">
-        <AgentCard agent={agentB} isActive={false} capturedPieces={caps.byBlack} capturedIsWhite />
-        <ChessBoard fen={finalFen ?? START_FEN} />
-        <AgentCard agent={agentA} isActive={false} capturedPieces={caps.byWhite} />
-      </div>
+      <GlassPanel className="max-w-[480px] mx-auto">
+        <div className="flex flex-col gap-1.5">
+          <AgentCard agent={agentB} isActive={false} capturedPieces={caps.byBlack} capturedIsWhite />
+          <ChessBoard fen={finalFen ?? START_FEN} />
+          <AgentCard agent={agentA} isActive={false} capturedPieces={caps.byWhite} />
+        </div>
+      </GlassPanel>
     </ArenaShell>
   );
 }
@@ -179,15 +189,15 @@ function CompletedArena({ vm, match, agentA, agentB }: {
 // ── Sub-components ────────────────────────────────────────────────────────
 function ArenaShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <motion.div className="min-h-screen bg-bg-base" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+    <BattleBackdrop>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5">
         <Link to="/games" className="inline-flex items-center gap-1.5 text-muted hover:text-gold text-sm mb-4 transition-colors">
           ← All games
         </Link>
         <h1 className="font-display text-ivory text-xl font-bold mb-4">{title}</h1>
         {children}
       </div>
-    </motion.div>
+    </BattleBackdrop>
   );
 }
 
