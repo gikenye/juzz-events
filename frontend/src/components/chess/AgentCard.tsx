@@ -1,139 +1,43 @@
-import { motion } from 'framer-motion';
-import { formatClock } from '../../lib/useLiveClocks';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import type { Agent } from '../../types';
+const PIECE_VALUE: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+import { AgentAvatar } from './AgentAvatar';
 
 const PIECE_UNICODE: Record<string, string> = {
   p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚',
 };
 
-const PIECE_VALUE: Record<string, number> = {
-  p: 1, n: 3, b: 3, r: 5, q: 9, k: 0,
-};
-
 interface AgentCardProps {
-  name: string;
-  color: 'maxi' | 'gotham';
+  agent: Agent;
   isActive: boolean;
   capturedPieces?: string[];
-  capturedPieceColor?: 'white' | 'black';
+  /** Whether the captured pieces are white pieces (affects glyph color). */
+  capturedIsWhite?: boolean;
+  /** Live trash-talk line to show next to the name (null = nothing). */
+  taunt?: string | null;
+  /** Remaining clock time in milliseconds. Omit to hide the clock. */
   clockMs?: number;
 }
 
-const configs = {
-  maxi: {
-    accent: '#7B4FBF',
-    accentLight: '#C4A3F5',
-    bgFrom: '#B88EEA',
-    bgTo: '#6a35b0',
-    iconColor: '#1C0F36',
-    lensColor: '#D4B0FF',
-    glowColor: '#9D72E080',
-  },
-  gotham: {
-    accent: '#00B4A6',
-    accentLight: '#00D4C4',
-    bgFrom: '#003d3a',
-    bgTo: '#00877e',
-    iconColor: '#C8F5F2',
-    lensColor: '#002926',
-    glowColor: '#00B4A680',
-  },
-};
-
-// Maxi — robot queen: rectangular head, crown, glowing square eyes, speaker mouth
-function MaxiIcon({ fill, lensColor }: { fill: string; lensColor: string }) {
-  return (
-    <g>
-      {/* Crown — 3 peaks */}
-      <polygon points="6,7 7.5,4.5 9.5,6.5 11,3.5 12.5,6.5 14.5,4.5 16,7" fill={fill} />
-      {/* Robot head */}
-      <rect x="4.5" y="7" width="13" height="11" rx="2.5" fill={fill} />
-      {/* Glowing square eyes */}
-      <rect x="6.5" y="9.5" width="3.5" height="2.5" rx="0.8" fill={lensColor} />
-      <rect x="12"   y="9.5" width="3.5" height="2.5" rx="0.8" fill={lensColor} />
-      {/* Speaker grille */}
-      <rect x="7.5" y="14" width="7" height="1.5" rx="0.75" fill={lensColor} />
-    </g>
-  );
-}
-
-// Gotham — aviator pilot: rounded helmet, goggle band, circular goggle lenses
-function GothamIcon({ fill, lensColor }: { fill: string; lensColor: string }) {
-  return (
-    <g>
-      {/* Helmet/head oval */}
-      <ellipse cx="11" cy="11" rx="7" ry="8.5" fill={fill} />
-      {/* Goggle frame band across middle */}
-      <rect x="3.5" y="9" width="15" height="5.5" rx="0.5" fill={fill} />
-      {/* Left goggle lens */}
-      <circle cx="8"  cy="11.75" r="2.8" fill={lensColor} />
-      {/* Right goggle lens */}
-      <circle cx="14" cy="11.75" r="2.8" fill={lensColor} />
-      {/* Bridge between lenses */}
-      <rect x="9.6" y="10.75" width="2.8" height="2" fill={fill} />
-      {/* Chin strap / mouth detail */}
-      <rect x="8.5" y="16.5" width="5" height="1.3" rx="0.65" fill={lensColor} />
-    </g>
-  );
-}
-
-function AgentAvatar({ color, isActive }: { color: 'maxi' | 'gotham'; isActive: boolean }) {
-  const cfg = configs[color];
-
-  return (
-    <div className="relative w-7 h-7 lg:w-11 lg:h-11 shrink-0">
-      {/* Outer glow pulse when active */}
-      {isActive && (
-        <motion.div
-          className="absolute inset-[-3px] rounded-full"
-          style={{ background: `radial-gradient(circle, ${cfg.glowColor} 0%, transparent 70%)` }}
-          animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      )}
-
-      {/* Avatar circle */}
-      <div
-        className="w-full h-full rounded-full flex items-center justify-center"
-        style={{
-          background: `linear-gradient(145deg, ${cfg.bgFrom} 0%, ${cfg.bgTo} 100%)`,
-          border: `2px solid ${isActive ? cfg.accentLight : cfg.accent + 'aa'}`,
-          boxShadow: isActive
-            ? `0 0 14px ${cfg.accent}90, inset 0 1px 0 ${cfg.accentLight}50`
-            : `inset 0 1px 0 ${cfg.accentLight}25`,
-          transition: 'box-shadow 0.3s ease, border-color 0.3s ease',
-        }}
-      >
-        <svg className="w-[80%] h-[80%]" viewBox="0 0 22 22" fill="none">
-          {color === 'maxi'
-            ? <MaxiIcon fill={cfg.iconColor} lensColor={cfg.lensColor} />
-            : <GothamIcon fill={cfg.iconColor} lensColor={cfg.lensColor} />
-          }
-        </svg>
-      </div>
-    </div>
-  );
-}
-
-export function AgentCard({ name, color, isActive, capturedPieces = [], capturedPieceColor, clockMs }: AgentCardProps) {
-  const cfg = configs[color];
-
+export function AgentCard({ agent, isActive, capturedPieces = [], capturedIsWhite, taunt = null, clockMs }: AgentCardProps) {
   const advantage = capturedPieces.reduce((sum, p) => sum + (PIECE_VALUE[p] ?? 0), 0);
   const sorted = [...capturedPieces].sort((a, b) => (PIECE_VALUE[b] ?? 0) - (PIECE_VALUE[a] ?? 0));
-  const pieceColor = capturedPieceColor === 'white' ? '#F5F0E8' : '#888888';
+  const pieceColor = capturedIsWhite ? '#F5F0E8' : '#888888';
 
   return (
     <div className="flex items-center gap-2.5">
-      <AgentAvatar color={color} isActive={isActive} />
+      <AgentAvatar agent={agent} isActive={isActive} />
 
-      {/* Name + active pulse */}
-      <div className="shrink-0 flex items-center gap-1.5">
-        <span className="font-display text-ivory text-sm font-semibold">{name}</span>
+      {/* Name block is the anchor for the trash-talk bubble (floats to its right). */}
+      <div className="relative shrink-0 flex items-center gap-1.5">
+        <span style={{ fontFamily: "'Cormorant Garamond', serif", color: '#FFD0A0', fontSize: 16, fontWeight: 600, letterSpacing: 0.5 }}>{agent.name.replace(/^Agent\s+/i, '')}</span>
         {isActive && (
-          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: cfg.accent }} />
+          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: agent.color }} />
         )}
+        <TauntBubble agent={agent} taunt={taunt} />
       </div>
 
-      {/* Captured pieces */}
       {sorted.length > 0 ? (
         <div className="flex items-center gap-0.5 flex-wrap flex-1 min-w-0">
           {sorted.map((piece, i) => (
@@ -141,27 +45,100 @@ export function AgentCard({ name, color, isActive, capturedPieces = [], captured
               {PIECE_UNICODE[piece] ?? piece}
             </span>
           ))}
-          {advantage > 0 && (
-            <span className="text-xs text-muted ml-0.5">+{advantage}</span>
-          )}
+          {advantage > 0 && <span className="text-xs text-muted ml-0.5">+{advantage}</span>}
         </div>
       ) : (
         <div className="flex-1" />
       )}
 
-      {/* Server-synced clock */}
       {clockMs !== undefined && (
-        <span
-          className="shrink-0 font-mono text-sm tabular-nums px-2 py-0.5 rounded-md border"
-          style={{
-            color: isActive ? cfg.accentLight : '#9A9AAF',
-            borderColor: isActive ? cfg.accent : '#2A2A35',
-            background: isActive ? cfg.accent + '14' : 'transparent',
-          }}
-        >
-          {formatClock(clockMs)}
-        </span>
+        <ClockDisplay ms={clockMs} isActive={isActive} />
       )}
     </div>
+  );
+}
+
+function ClockDisplay({ ms, isActive }: { ms: number; isActive: boolean }) {
+  const totalSecs = Math.ceil(ms / 1000);
+  const minutes = Math.floor(totalSecs / 60);
+  const seconds = totalSecs % 60;
+  const isCritical = totalSecs < 10;
+  const isLow = totalSecs < 30;
+
+  return (
+    <div
+      className="shrink-0 tabular-nums"
+      style={{
+        fontFamily: "'Inter', monospace",
+        fontSize: 14,
+        fontWeight: 700,
+        letterSpacing: 1,
+        color: isCritical ? '#FF2200' : isLow ? '#FF8800' : isActive ? '#F5F0E8' : '#6A6A7A',
+        background: isActive ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.35)',
+        border: `1px solid ${isCritical ? 'rgba(255,34,0,0.45)' : isLow ? 'rgba(255,136,0,0.35)' : 'rgba(255,255,255,0.08)'}`,
+        borderRadius: 4,
+        padding: '2px 8px',
+        minWidth: 52,
+        textAlign: 'center',
+        transition: 'color 0.3s, border-color 0.3s',
+      }}
+    >
+      {minutes}:{seconds.toString().padStart(2, '0')}
+    </div>
+  );
+}
+
+// Frosted glass chip floating just to the right of the agent's name, vertically
+// centered on the row. Single line, no wrap. Shows a brief typing-dots animation
+// before revealing the line.
+function TauntBubble({ agent, taunt }: { agent: Agent; taunt: string | null }) {
+  // Keyed inner component so `typing` initializes fresh per taunt — no
+  // reset-in-effect, and AnimatePresence still plays enter + exit.
+  return (
+    <AnimatePresence>
+      {taunt && <Bubble key={taunt} colorLight={agent.colorLight} taunt={taunt} />}
+    </AnimatePresence>
+  );
+}
+
+function Bubble({ colorLight, taunt }: { colorLight: string; taunt: string }) {
+  const [typing, setTyping] = useState(true);
+  useEffect(() => {
+    const t = window.setTimeout(() => setTyping(false), 650);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.85, x: -6 }}
+      animate={{ opacity: 1, scale: 1, x: 0 }}
+      exit={{ opacity: 0, scale: 0.85 }}
+      transition={{ duration: 0.16, ease: 'easeOut' }}
+      className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-30 w-max whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-medium text-ivory pointer-events-none"
+      style={{
+        background: 'rgba(255,255,255,0.08)',
+        border: '1px solid rgba(255,255,255,0.14)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+      }}
+    >
+      {typing ? <TypingDots color={colorLight} /> : taunt}
+    </motion.div>
+  );
+}
+
+function TypingDots({ color }: { color: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 py-0.5 px-0.5">
+      {[0, 1, 2].map(i => (
+        <motion.span
+          key={i}
+          className="block w-1 h-1 rounded-full"
+          style={{ background: color }}
+          animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
+          transition={{ duration: 0.9, repeat: Infinity, ease: 'easeInOut', delay: i * 0.15 }}
+        />
+      ))}
+    </span>
   );
 }

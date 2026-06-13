@@ -17,14 +17,14 @@ describe('chessFen', () => {
   });
 
   it('no captures at the start', () => {
-    expect(capturedFromFen(START)).toEqual({ byMaxi: [], byGotham: [] });
+    expect(capturedFromFen(START)).toEqual({ byBlack: [], byWhite: [] });
   });
 
   it('derives captured pieces from missing material', () => {
     // black queen gone (d8), white down two pawns
     const fen = 'rnb1kbnr/pppppppp/8/8/8/8/PPPPPP2/RNBQKBNR w - - 0 1';
-    const { byMaxi, byGotham } = capturedFromFen(fen);
-    expect(byGotham).toEqual(['q']);       // white captured black's queen
-    expect(byMaxi).toEqual(['p', 'p']);    // black captured two white pawns
+    const { byBlack, byWhite } = capturedFromFen(fen);
+    expect(byWhite).toEqual(['q']);       // white captured black's queen
+    expect(byBlack).toEqual(['p', 'p']);    // black captured two white pawns
   });
 });

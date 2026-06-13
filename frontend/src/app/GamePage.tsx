@@ -1,140 +1,245 @@
-import { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+// One match's arena: live board + market when it plays, replayed final
+// position when done, feeder view while TBD. Everything is server truth —
+// the match identity is a bracket position (stable across draw rematches).
+// Shares the Battle Eve backdrop + glass card language with /games.
+import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { useParams, Navigate, Link } from 'react-router-dom';
+import { useTournamentStore } from '../store/tournamentStore';
 import { useGameStore } from '../store/gameStore';
 import { useMarketStore } from '../store/marketStore';
+import { usePositionsStore } from '../store/positionsStore';
+import { api } from '../lib/api';
+import { getAgent, fallbackAgent, eloExpected } from '../lib/agents';
+import type { Agent } from '../types';
+import { buildCupVM, type MatchVM } from '../lib/tournamentView';
+import { capturedFromFen } from '../lib/chessFen';
 import { useLiveClocks } from '../lib/useLiveClocks';
+import { useBotBanter } from '../hooks/useBotBanter';
 import type { GameResult } from '../lib/types';
 import { ChessBoard } from '../components/chess/ChessBoard';
 import { AgentCard } from '../components/chess/AgentCard';
 import { MarketPanel } from '../components/market/MarketPanel';
+import { OddsDisplay, type SlotView } from '../components/market/OddsDisplay';
 import { SettlementBanner } from '../components/market/SettlementBanner';
-import { usePositionsStore } from '../store/positionsStore';
-import { useTournamentStore } from '../store/tournamentStore';
-import { TournamentRail } from '../components/tournament/TournamentRail';
-import { LeagueInterstitial } from '../components/tournament/LeagueInterstitial';
-import { useStartsIn, formatClock } from '../lib/useLiveClocks';
+import { Countdown } from '../components/tournament/Countdown';
+import { BattleBackdrop, GlassPanel } from '../components/layout/BattleBackdrop';
 
-function resultBanner(result: GameResult | null, whiteName: string, blackName: string): string {
-  switch (result) {
-    case 'white_wins':    return `${whiteName} wins`;
-    case 'black_wins':    return `${blackName} wins`;
-    case 'white_timeout': return `${blackName} wins on time`;
-    case 'black_timeout': return `${whiteName} wins on time`;
-    case 'draw':          return 'Draw';
-    case 'aborted':       return 'Game aborted';
-    default:              return 'Game over';
-  }
-}
+const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+const RESULT_TEXT: Partial<Record<GameResult, string>> = {
+  white_wins: 'by checkmate',
+  black_wins: 'by checkmate',
+  white_timeout: 'on time',
+  black_timeout: 'on time',
+};
 
 export function GamePage() {
-  const { players, turn, capturedPieces, isFinished, result, waiting, connected, start, stop } = useGameStore();
-  const bindMarket = useMarketStore(s => s.bind);
-  const bindPositions = usePositionsStore(s => s.bind);
-  const bindTournament = useTournamentStore(s => s.bind);
-  const tournament = useTournamentStore(s => s.snapshot);
+  const { matchId } = useParams();
+  const snapshot = useTournamentStore(s => s.snapshot);
   const league = useTournamentStore(s => s.league);
-  const joinedMidGame = useGameStore(s => s.joinedMidGame);
-  const moveNumber = useGameStore(s => s.moveNumber);
-  const startsIn = useStartsIn();
-  const unbindMarket = useMarketStore(s => s.unbind);
-  const clocks = useLiveClocks();
+  const startsAt = useTournamentStore(s => s.nextMatchStartsAtMs);
+  const offset = useTournamentStore(s => s.serverOffsetMs);
+  const now = useTournamentStore(s => s.now);
 
-  // Live game + market streams: one socket, auto-rolls to the next game on the same screen.
   useEffect(() => {
-    start();
-    bindMarket();
-    bindPositions();
-    bindTournament();
-    return () => { stop(); unbindMarket(); };
-  }, [start, stop, bindMarket, unbindMarket, bindPositions, bindTournament]);
+    useTournamentStore.getState().bind();
+    useMarketStore.getState().bind();
+    usePositionsStore.getState().bind();
+  }, []);
 
-  const whiteName = players.white?.name ?? 'White';
-  const blackName = players.black?.name ?? 'Black';
+  const vm = buildCupVM(snapshot, league, startsAt, now - offset);
+  const match = vm.matches.find(m => m.id === matchId) ?? null;
+
+  // Pin the live game stream to this match's latest game (rematches re-pin).
+  const gameId = match && (match.phase === 'live' || match.phase === 'countdown') ? match.gameId : null;
+  useEffect(() => {
+    if (gameId) useGameStore.getState().watch(gameId);
+  }, [gameId]);
+
+  if (!snapshot || !match) return <Navigate to="/game" replace />;
+
+  const players = useGameStore.getState().players;
+  const agentOf = (id: string | null): Agent | null => {
+    if (!id) return null;
+    const name = [players.white, players.black].find(p => p?.agent_id === id)?.name;
+    return getAgent(id) ?? fallbackAgent(id, name);
+  };
+  const agentA = agentOf(match.aId);
+  const agentB = agentOf(match.bId);
+
+  // ── TBD: feeders not decided yet ──
+  if (!agentA || !agentB) {
+    return (
+      <ArenaShell title={`${vm.name} · ${match.code}`}>
+        <GlassPanel className="max-w-lg mx-auto">
+          <div className="flex items-center justify-center gap-6 py-8 text-center">
+            <TbdSlot label={`Winner of ${match.sourceA ?? '—'}`} />
+            <span className="text-muted font-display text-xl">vs</span>
+            <TbdSlot label={`Winner of ${match.sourceB ?? '—'}`} />
+          </div>
+          <p className="text-center text-muted text-sm">
+            The two players are decided once the feeder matches finish.
+          </p>
+        </GlassPanel>
+      </ArenaShell>
+    );
+  }
+
+  if (match.phase === 'live' || match.phase === 'countdown') {
+    return <LiveArena match={match} cupName={vm.name} agentA={agentA} agentB={agentB}
+                      countdownTarget={match.phase === 'countdown' ? vm.startsAtMs + offset : 0} />;
+  }
+  if (match.phase === 'completed') {
+    return <CompletedArena cupName={vm.name} match={match} agentA={agentA} agentB={agentB} />;
+  }
+
+  // ── Upcoming with known participants ──
+  const pa = eloExpected(agentA.elo, agentB.elo);
+  const preview: SlotView[] = [
+    { key: 'a', label: agentA.name.replace(/^Agent\s+/, ''), color: agentA.color, prob: pa, agent: agentA },
+    { key: 'b', label: agentB.name.replace(/^Agent\s+/, ''), color: agentB.color, prob: 1 - pa, agent: agentB },
+  ];
+  return (
+    <ArenaShell title={`${vm.name} · ${match.code}`}>
+      <GlassPanel className="max-w-[480px] mx-auto">
+        <div className="flex flex-col gap-1.5">
+          <AgentCard agent={agentB} isActive={false} />
+          <ChessBoard fen={START_FEN} />
+          <AgentCard agent={agentA} isActive={false} />
+        </div>
+        <div className="mt-4">
+          <p className="text-center text-muted text-xs uppercase tracking-widest mb-2">Pre-match win chance</p>
+          <OddsDisplay outcomes={preview} readOnly />
+        </div>
+      </GlassPanel>
+    </ArenaShell>
+  );
+}
+
+// ── Live (or pre-game countdown) ──────────────────────────────────────────
+function LiveArena({ match, cupName, agentA, agentB, countdownTarget }: {
+  match: MatchVM; cupName: string; agentA: Agent; agentB: Agent; countdownTarget: number;
+}) {
+  const gameId = useGameStore(s => s.gameId);
+  const fen = useGameStore(s => s.fen);
+  const moveNumber = useGameStore(s => s.moveNumber);
+  const captured = useGameStore(s => s.capturedPieces);
+  const isFinished = useGameStore(s => s.isFinished);
+  const result = useGameStore(s => s.result);
+  const players = useGameStore(s => s.players);
+  const clocks = useLiveClocks(); // real server clocks { white, black } in ms
+
+  // Seats can swap on rematches — colour by seat, not bracket side.
+  const whiteAgent = players.white?.agent_id === agentB.id ? agentB : agentA;
+  const blackAgent = whiteAgent === agentA ? agentB : agentA;
+  const turn = fen.split(' ')[1];
+  const winner = isFinished && match.winnerId
+    ? (match.winnerId === agentA.id ? agentA : agentB) : null;
+  // Winning seat for the banter gloat/cope (a = white seat, b = black seat).
+  const winnerSeat = winner ? (winner === whiteAgent ? 'a' : 'b') : null;
+
+  // Live trash talk, driven by the server move stream.
+  const banter = useBotBanter({
+    gameId, moveNumber, fen, turn, finished: isFinished, winnerSeat,
+    whiteAgentId: whiteAgent.id, blackAgentId: blackAgent.id,
+  });
 
   return (
-    <motion.div className="min-h-screen bg-bg-base" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-        <SettlementBanner />
-        <AnimatePresence>
-          {isFinished && (
-            <motion.div
-              key="banner"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="mb-4 text-center py-3 rounded-xl border border-gold/50 bg-gold/10 text-gold font-display font-semibold tracking-wider"
-            >
-              ♚ {resultBanner(result, whiteName, blackName)} · next game shortly…
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {waiting && !isFinished && !connected && (
-          <div className="mb-4 text-center py-3 rounded-xl border border-border bg-bg-card text-muted text-sm">
-            Connecting…
-          </div>
-        )}
-
-        {waiting && !isFinished && connected && (
-          tournament && tournament.status.state === 'live'
-            ? <div className="mb-4 text-center py-3 rounded-xl border border-border bg-bg-card text-muted text-sm">
-                Next match starting…
-              </div>
-            : league
-              ? <LeagueInterstitial />
-              : <div className="mb-4 text-center py-3 rounded-xl border border-border bg-bg-card text-muted text-sm">
-                  Waiting for the next live game…
-                </div>
-        )}
-
-        {(waiting && connected && !tournament && league) ? null :
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-          {/* Chess area */}
+    <ArenaShell title={`${cupName} · ${match.code}`}>
+      <SettlementBanner />
+      {winner && <WinnerBanner name={winner.name} detail={result ? RESULT_TEXT[result] : undefined} />}
+      {countdownTarget > 0 && <CountdownBanner target={countdownTarget} />}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+        <GlassPanel>
           <div className="flex flex-col gap-1.5">
-            {/* Black player (top) — shows white pieces it has captured */}
-            <AgentCard
-              name={blackName}
-              color="maxi"
-              isActive={turn === 'b' && !isFinished}
-              capturedPieces={capturedPieces.byMaxi}
-              capturedPieceColor="white"
-              clockMs={clocks.black}
-            />
-
-            <div className="relative">
-              {startsIn > 0 && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-lg bg-black/70 backdrop-blur-[2px]">
-                  <p className="text-muted text-xs uppercase tracking-widest mb-1">{whiteName} vs {blackName}</p>
-                  <p className="font-display text-gold text-4xl font-bold tabular-nums">{formatClock(startsIn)}</p>
-                  <p className="text-ivory text-xs mt-1.5">place your predictions</p>
-                </div>
-              )}
-              {joinedMidGame && !isFinished && startsIn === 0 && (
-                <span className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded bg-black/60 text-gotham text-[10px] font-semibold tracking-widest">
-                  LIVE · MOVE {moveNumber}
-                </span>
-              )}
-              <ChessBoard />
-            </div>
-
-            {/* White player (bottom) — shows black pieces it has captured */}
-            <AgentCard
-              name={whiteName}
-              color="gotham"
-              isActive={turn === 'w' && !isFinished}
-              capturedPieces={capturedPieces.byGotham}
-              capturedPieceColor="black"
-              clockMs={clocks.white}
-            />
+            <AgentCard agent={blackAgent} isActive={turn === 'b' && !isFinished}
+                       capturedPieces={captured.byBlack} capturedIsWhite clockMs={clocks.black}
+                       taunt={banter?.speaker === 'b' ? banter.text : null} />
+            <ChessBoard />
+            <AgentCard agent={whiteAgent} isActive={turn === 'w' && !isFinished}
+                       capturedPieces={captured.byWhite} clockMs={clocks.white}
+                       taunt={banter?.speaker === 'a' ? banter.text : null} />
           </div>
-
-          {/* Market panel */}
-          <div className="lg:sticky lg:top-20 lg:self-start flex flex-col gap-4">
-            <MarketPanel />
-            <TournamentRail />
-          </div>
-        </div>}
+        </GlassPanel>
+        <div className="lg:sticky lg:top-20 lg:self-start">
+          <MarketPanel />
+        </div>
       </div>
+    </ArenaShell>
+  );
+}
+
+// ── Completed: replayed final position ────────────────────────────────────
+function CompletedArena({ cupName, match, agentA, agentB }: {
+  cupName: string; match: MatchVM; agentA: Agent; agentB: Agent;
+}) {
+  const [finalFen, setFinalFen] = useState<string | null>(null);
+  useEffect(() => {
+    if (!match.gameId) return;
+    api.gameReplay(match.gameId)
+      .then(r => setFinalFen(r.moves.length ? r.moves[r.moves.length - 1].state : START_FEN))
+      .catch(() => setFinalFen(START_FEN));
+  }, [match.gameId]);
+
+  const winner = match.winnerId === agentA.id ? agentA : agentB;
+  const caps = useMemo(() => capturedFromFen(finalFen ?? START_FEN), [finalFen]);
+
+  return (
+    <ArenaShell title={`${cupName} · ${match.code}`}>
+      <WinnerBanner name={winner.name} />
+      <GlassPanel className="max-w-[480px] mx-auto">
+        <div className="flex flex-col gap-1.5">
+          <AgentCard agent={agentB} isActive={false} capturedPieces={caps.byBlack} capturedIsWhite />
+          <ChessBoard fen={finalFen ?? START_FEN} />
+          <AgentCard agent={agentA} isActive={false} capturedPieces={caps.byWhite} />
+        </div>
+      </GlassPanel>
+    </ArenaShell>
+  );
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────
+function ArenaShell({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <BattleBackdrop>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5">
+        <Link to="/games" className="inline-flex items-center gap-1.5 text-muted hover:text-gold text-sm mb-4 transition-colors">
+          ← All games
+        </Link>
+        <h1 className="font-display text-ivory text-xl font-bold mb-4">{title}</h1>
+        {children}
+      </div>
+    </BattleBackdrop>
+  );
+}
+
+function CountdownBanner({ target }: { target: number }) {
+  return (
+    <div className="mb-4 text-center py-4 rounded-xl border border-gold/40 bg-gold/5">
+      <div className="text-muted text-xs uppercase tracking-widest mb-1">Game starts in</div>
+      <Countdown target={target} className="font-display text-gold text-3xl font-bold tabular-nums" />
+    </div>
+  );
+}
+
+function WinnerBanner({ name, detail }: { name: string; detail?: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mb-4 text-center py-3 rounded-xl border border-gold/50 bg-gold/10 text-gold font-display font-semibold tracking-wider"
+    >
+      🏆 {name} wins {detail ?? ''}
     </motion.div>
+  );
+}
+
+function TbdSlot({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="w-16 h-16 rounded-full border border-dashed border-border flex items-center justify-center text-muted text-2xl">?</div>
+      <span className="text-muted text-sm italic max-w-[120px] text-center">{label}</span>
+    </div>
   );
 }

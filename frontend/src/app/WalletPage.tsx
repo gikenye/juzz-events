@@ -11,10 +11,15 @@ import { assetBySymbol, type AssetSymbol } from '../lib/config';
 import { Button } from '../components/ui/Button';
 import { usePositionsStore, type SettledPrediction } from '../store/positionsStore';
 import { BuyFunds } from '../components/wallet/BuyFunds';
+import { TokenIcon } from '../components/ui/TokenIcon';
+import { txErrorMessage } from '../lib/txErrors';
 
 const toTokenBase = (usd: number, decimals: number) => BigInt(Math.round(usd * 10 ** decimals)).toString();
 const money = (micro: string | number) => (Number(micro) / 1e6).toFixed(2);
-const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+// Backend ApiError messages are already user-facing; everything else (wallet /
+// chain / RPC) goes through the tx-error translator so we never dump a raw blob.
+const errText = (e: unknown): string =>
+  e instanceof ApiError ? e.message : txErrorMessage(e);
 // Display form of the wire asset symbol (server speaks UPPERCASE, brand is "USDm").
 const assetLabel = (wire: string) => (wire === 'USDM' ? 'USDm' : wire);
 const isAddress = (s: string) => /^0x[0-9a-fA-F]{40}$/.test(s.trim());
@@ -42,7 +47,7 @@ export function WalletPage() {
 
   return (
     <div className="min-h-screen bg-bg-base">
-      <div className="max-w-lg mx-auto px-4 py-10">
+      <div className="max-w-lg mx-auto px-4 pt-24 pb-10">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           {body}
         </motion.div>
@@ -110,8 +115,8 @@ function AccountHome() {
         <div className="flex items-end gap-2.5">
           <span className="font-display text-5xl font-bold text-ivory leading-none">${balance.toFixed(2)}</span>
           {balance > 0 && fullBalance?.primary_asset && (
-            <span className="mb-0.5 px-2 py-0.5 rounded-full border border-gold/40 bg-gold/10 text-gold text-xs font-semibold">
-              {payoutIn}
+            <span className="mb-0.5 px-2 py-0.5 rounded-full border border-gold/40 bg-gold/10 text-gold text-xs font-semibold inline-flex items-center gap-1">
+              <TokenIcon symbol={payoutIn} size={14} />{payoutIn}
             </span>
           )}
         </div>
@@ -349,12 +354,32 @@ function SendPanel({ sendable, gasOwed, payoutIn, isMiniPay, tradingToken, login
 
 // ── MiniPay deposit form (shared: first-funding page + funded Add money panel) ─
 function MiniPayDepositForm() {
-  const { setTradingSession } = useAuthStore();
+  const { setTradingSession, chainBalances, walletAddress, connectInjected, refreshChainBalances } = useAuthStore();
   const [amt, setAmt]     = useState(2);
   const [asset, setAsset] = useState<AssetSymbol>('USDm');
   const [step, setStep]   = useState<string>();
   const [busy, setBusy]   = useState(false);
   const [err, setErr]     = useState<string>();
+
+  // Detect what they hold up front and default to their richest stablecoin —
+  // these users are guaranteed to have one of the three.
+  const didInit = useRef(false);
+  useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+    (async () => {
+      if (!walletAddress) await connectInjected(true);
+      await refreshChainBalances();
+      const bals = useAuthStore.getState().chainBalances;
+      if (bals) {
+        const richest = (Object.entries(bals) as [AssetSymbol, number][])
+          .sort((a, b) => b[1] - a[1])[0];
+        if (richest && richest[1] > 0) setAsset(richest[0]);
+      }
+    })();
+  }, [walletAddress, connectInjected, refreshChainBalances]);
+
+  const held = chainBalances?.[asset] ?? null;
 
   const deposit = async () => {
     setBusy(true); setErr(undefined);
@@ -372,16 +397,22 @@ function MiniPayDepositForm() {
     setBusy(false);
   };
 
+  const over = held !== null && amt > held;
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-2">
-        {(['USDm', 'USDC', 'USDT'] as AssetSymbol[]).map(s => (
-          <button key={s} onClick={() => setAsset(s)} disabled={busy}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-40 ${
-              asset === s ? 'border-gold text-gold bg-gold/10' : 'border-border text-muted hover:text-ivory'}`}>
-            {s}
-          </button>
-        ))}
+        {(['USDm', 'USDC', 'USDT'] as AssetSymbol[]).map(s => {
+          const bal = chainBalances?.[s];
+          return (
+            <button key={s} onClick={() => setAsset(s)} disabled={busy}
+              className={`flex-1 py-1.5 rounded-lg border transition-colors disabled:opacity-40 flex flex-col items-center gap-0.5 ${
+                asset === s ? 'border-gold text-gold bg-gold/10' : 'border-border text-muted hover:text-ivory'}`}>
+              <span className="flex items-center gap-1 text-xs font-semibold"><TokenIcon symbol={s} size={14} />{s}</span>
+              {bal !== undefined && <span className="text-[10px] opacity-70 block">${bal.toFixed(2)}</span>}
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex items-center gap-2 bg-bg-base border border-border rounded-lg px-3 py-2 focus-within:border-gold transition-colors">
@@ -389,6 +420,10 @@ function MiniPayDepositForm() {
         <input type="number" inputMode="decimal" min={1} step={1} value={amt} disabled={busy}
           onChange={e => setAmt(Math.max(1, Number(e.target.value) || 1))}
           className="flex-1 bg-transparent text-ivory text-xl font-semibold outline-none w-full disabled:opacity-40" />
+        {held !== null && (
+          <button onClick={() => setAmt(Math.floor(held))} disabled={busy || held < 1}
+            className="text-xs text-gold font-semibold shrink-0 disabled:opacity-30">MAX</button>
+        )}
       </div>
 
       <div className="flex gap-2">
@@ -401,8 +436,8 @@ function MiniPayDepositForm() {
         ))}
       </div>
 
-      <Button onClick={deposit} loading={busy} className="w-full">
-        Deposit ${amt} in {asset}
+      <Button onClick={deposit} loading={busy} disabled={over} className="w-full">
+        {over ? `Only $${held!.toFixed(2)} in ${asset}` : `Deposit $${amt} in ${asset}`}
       </Button>
       {step && <p className="text-gold text-sm">{step}</p>}
       {err  && <p className="text-red-400 text-sm">{err}</p>}
