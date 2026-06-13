@@ -9,7 +9,11 @@ const NAV_LINKS = [
 ];
 
 export function Navbar() {
-  const { user, balance, logout } = useAuthStore();
+  const { user, balance, logout, isMiniPay, walletAddress } = useAuthStore();
+  // Wallet-native users (MiniPay / injected) have no email account — they're
+  // "in" without sign-in, so show their balance and never an email Login button.
+  const walletUser = isMiniPay || !!walletAddress;
+  const funded = !!user || walletUser;
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [userMenu, setUserMenu] = useState(false);
@@ -48,7 +52,7 @@ export function Navbar() {
           {/* Right side */}
           <div className="flex items-center gap-3">
             {/* Wallet balance — desktop */}
-            {user && (
+            {funded && (
               <button
                 onClick={() => navigate('/wallet')}
                 className="hidden sm:flex items-center gap-2 text-sm transition-all px-3 py-1.5 rounded-xl"
@@ -61,7 +65,8 @@ export function Navbar() {
               </button>
             )}
 
-            {/* Auth — desktop */}
+            {/* Auth — desktop. Email accounts get the avatar menu; wallet-native
+                users are already in (balance chip above); only true visitors see Login. */}
             {user ? (
               <div className="relative hidden sm:block">
                 <button
@@ -86,7 +91,7 @@ export function Navbar() {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : walletUser ? null : (
               <button
                 onClick={() => navigate('/login')}
                 className="hidden sm:block text-sm font-semibold px-4 py-1.5 rounded-xl transition-all"
@@ -143,6 +148,13 @@ export function Navbar() {
                   Sign out
                 </button>
               </>
+            ) : walletUser ? (
+              <button
+                onClick={() => { navigate('/wallet'); setOpen(false); }}
+                className="px-5 py-4 rounded-xl text-lg font-medium text-left transition-all"
+                style={{ color: 'rgba(245,240,232,0.75)', borderBottom: '1px solid rgba(255,100,0,0.08)' }}>
+                Wallet · ${balance.toFixed(2)}
+              </button>
             ) : (
               <button
                 onClick={() => { navigate('/login'); setOpen(false); }}

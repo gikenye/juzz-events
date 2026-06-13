@@ -9,8 +9,12 @@ import { persist } from 'zustand/middleware';
 import { api } from '../lib/api';
 import { socket } from '../lib/ws';
 import { createPasskey, getPasskey, passkeySupported } from '../lib/webauthn';
+import { connectWallet, tokenBalance } from '../lib/celo';
+import { ASSETS, type AssetSymbol } from '../lib/config';
 
 interface Account { id: string; email: string }
+
+export type ChainBalances = Record<AssetSymbol, number>; // on-chain stablecoin dollars
 
 interface AuthState {
   user: Account | null;       // login session (account)
@@ -18,9 +22,13 @@ interface AuthState {
   tradingToken: string | null; // set by the wallet flow once a deposit lands
   wallet: string | null;       // trading wallet address
   isMiniPay: boolean;
+  walletAddress: string | null;      // connected injected EOA (MiniPay / MetaMask)
+  chainBalances: ChainBalances | null; // their on-chain USDC/USDT/USDm, in dollars
   balance: number;             // dollars; real once a trading session + wallet exist
 
   detectMiniPay: () => void;
+  connectInjected: (silent?: boolean) => Promise<string | null>;
+  refreshChainBalances: () => Promise<void>;
   requestOtp: (email: string) => Promise<void>;
   verifyOtp: (email: string, code: string) => Promise<void>;
   loginPasskey: (email: string) => Promise<void>;
@@ -44,11 +52,44 @@ export const useAuthStore = create<AuthState>()(
       tradingToken: null,
       wallet: null,
       isMiniPay: false,
+      walletAddress: null,
+      chainBalances: null,
       balance: 0,
 
       detectMiniPay() {
         const eth = (window as { ethereum?: { isMiniPay?: boolean } }).ethereum;
         set({ isMiniPay: !!eth?.isMiniPay });
+      },
+
+      // Connect the injected wallet. MiniPay auto-approves (silent); other wallets
+      // (MetaMask) prompt. Returns the address, or null if unavailable/declined.
+      // `silent` swallows errors so the app never blocks on entry.
+      async connectInjected(silent = false) {
+        try {
+          const address = await connectWallet();
+          set({ walletAddress: address });
+          void get().refreshChainBalances();
+          return address;
+        } catch (e) {
+          if (!silent) throw e;
+          return null;
+        }
+      },
+
+      // Read the user's on-chain USDC/USDT/USDm so we can show what they can play
+      // with — these wallet-native users are guaranteed to hold a stablecoin.
+      async refreshChainBalances() {
+        const addr = get().walletAddress;
+        if (!addr) return;
+        const entries = await Promise.all(ASSETS.map(async a => {
+          try {
+            const raw = await tokenBalance(addr as `0x${string}`, a.address);
+            return [a.symbol, Number(raw) / 10 ** a.decimals] as const;
+          } catch {
+            return [a.symbol, 0] as const;
+          }
+        }));
+        set({ chainBalances: Object.fromEntries(entries) as ChainBalances });
       },
 
       async requestOtp(email) {
@@ -107,7 +148,8 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout() {
-        set({ user: null, loginToken: null, tradingToken: null, wallet: null, balance: 0 });
+        set({ user: null, loginToken: null, tradingToken: null, wallet: null, balance: 0,
+              walletAddress: null, chainBalances: null });
         socket.connect(null); // drop back to a spectator connection
       },
 

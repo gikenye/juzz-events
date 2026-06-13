@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import { onrampEnabled, ASSETS, assetBySymbol, type AssetSymbol } from '../../lib/config';
+import { TokenIcon } from '../ui/TokenIcon';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
 import { connectWallet } from '../../lib/celo';
@@ -66,9 +67,9 @@ export function BuyFunds({ loginToken, onPurchased }: { loginToken?: string; onP
             <div className="flex gap-2 mb-4">
               {ASSETS.map(a => (
                 <button key={a.symbol} onClick={() => setAsset(a.symbol)}
-                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors inline-flex items-center justify-center gap-1 ${
                     asset === a.symbol ? 'border-gold text-gold bg-gold/10' : 'border-border text-muted hover:text-ivory'}`}>
-                  {a.symbol}
+                  <TokenIcon symbol={a.symbol} size={14} />{a.symbol}
                 </button>
               ))}
             </div>

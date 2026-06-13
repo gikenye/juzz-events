@@ -6,7 +6,7 @@ import { impliedOdds, potentialPayout } from '../../lib/odds';
 import type { SlotView } from './OddsDisplay';
 
 export function BetSlip({ outcomes }: { outcomes: SlotView[] }) {
-  const { user, balance, tradingToken } = useAuthStore();
+  const { balance, tradingToken } = useAuthStore();
   const { selected, stakeAmount, slots, isMarketOpen, betError, pending, setStake, placeBet } = useMarketStore();
   const openPositions = usePositionsStore(s => s.open);
   const navigate = useNavigate();
@@ -16,10 +16,10 @@ export function BetSlip({ outcomes }: { outcomes: SlotView[] }) {
   const payout = view && stake > 0 ? potentialPayout(stake, impliedOdds(view.prob)) : 0;
 
   const insufficient = !!tradingToken && stake > balance;
+  // No trading session yet → /wallet (it figures out MiniPay deposit vs email
+  // funding vs sign-in). Never send a wallet user to email login.
   const handlePlace = () => {
-    if (!user) { navigate('/login'); return; }
-    if (!tradingToken) { navigate('/wallet'); return; } // sign-in alone isn't a trading session
-    if (insufficient) { navigate('/wallet'); return; }
+    if (!tradingToken || insufficient) { navigate('/wallet'); return; }
     placeBet();
   };
 
@@ -29,7 +29,6 @@ export function BetSlip({ outcomes }: { outcomes: SlotView[] }) {
 
   const btnDisabled = !isMarketOpen || !selected || !stakeAmount || pending;
   const btnLabel = !isMarketOpen ? 'Predictions closed'
-    : !user ? 'Login to predict'
     : !tradingToken ? 'Add funds to predict'
     : pending ? 'Placing…' : 'Lock in prediction';
 
