@@ -26,34 +26,38 @@ export function AgentCard({ agent, isActive, capturedPieces = [], capturedIsWhit
   const pieceColor = capturedIsWhite ? '#F5F0E8' : '#888888';
 
   return (
-    <div className="flex items-center gap-2.5">
-      <AgentAvatar agent={agent} isActive={isActive} />
+    <div className="flex flex-col gap-1">
+      {/* Info row: avatar · name · captured pieces · clock */}
+      <div className="flex items-center gap-2.5">
+        <AgentAvatar agent={agent} isActive={isActive} />
 
-      {/* Name block is the anchor for the trash-talk bubble (floats to its right). */}
-      <div className="relative shrink-0 flex items-center gap-1.5">
-        <span style={{ fontFamily: "'Cormorant Garamond', serif", color: '#FFD0A0', fontSize: 16, fontWeight: 600, letterSpacing: 0.5 }}>{agent.name.replace(/^Agent\s+/i, '')}</span>
-        {isActive && (
-          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: agent.color }} />
+        <div className="shrink-0 flex items-center gap-1.5">
+          <span style={{ fontFamily: "'Cormorant Garamond', serif", color: '#FFD0A0', fontSize: 16, fontWeight: 600, letterSpacing: 0.5 }}>{agent.name.replace(/^Agent\s+/i, '')}</span>
+          {isActive && (
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: agent.color }} />
+          )}
+        </div>
+
+        {sorted.length > 0 ? (
+          <div className="flex items-center gap-0.5 flex-wrap flex-1 min-w-0">
+            {sorted.map((piece, i) => (
+              <span key={i} className="text-sm leading-none" style={{ color: pieceColor }}>
+                {PIECE_UNICODE[piece] ?? piece}
+              </span>
+            ))}
+            {advantage > 0 && <span className="text-xs text-muted ml-0.5">+{advantage}</span>}
+          </div>
+        ) : (
+          <div className="flex-1" />
         )}
-        <TauntBubble agent={agent} taunt={taunt} />
+
+        {clockMs !== undefined && (
+          <ClockDisplay ms={clockMs} isActive={isActive} />
+        )}
       </div>
 
-      {sorted.length > 0 ? (
-        <div className="flex items-center gap-0.5 flex-wrap flex-1 min-w-0">
-          {sorted.map((piece, i) => (
-            <span key={i} className="text-sm leading-none" style={{ color: pieceColor }}>
-              {PIECE_UNICODE[piece] ?? piece}
-            </span>
-          ))}
-          {advantage > 0 && <span className="text-xs text-muted ml-0.5">+{advantage}</span>}
-        </div>
-      ) : (
-        <div className="flex-1" />
-      )}
-
-      {clockMs !== undefined && (
-        <ClockDisplay ms={clockMs} isActive={isActive} />
-      )}
+      {/* Trash talk — its own line below the row so it never overlaps the pieces. */}
+      <TauntLine agent={agent} taunt={taunt} />
     </div>
   );
 }
@@ -88,20 +92,20 @@ function ClockDisplay({ ms, isActive }: { ms: number; isActive: boolean }) {
   );
 }
 
-// Frosted glass chip floating just to the right of the agent's name, vertically
-// centered on the row. Single line, no wrap. Shows a brief typing-dots animation
-// before revealing the line.
-function TauntBubble({ agent, taunt }: { agent: Agent; taunt: string | null }) {
+// Trash talk on its own line below the agent row — a frosted pill, legible,
+// never overlapping the captured pieces. Reserves no height when silent.
+// A brief typing-dots animation plays before the line is revealed.
+function TauntLine({ agent, taunt }: { agent: Agent; taunt: string | null }) {
   // Keyed inner component so `typing` initializes fresh per taunt — no
   // reset-in-effect, and AnimatePresence still plays enter + exit.
   return (
-    <AnimatePresence>
-      {taunt && <Bubble key={taunt} colorLight={agent.colorLight} taunt={taunt} />}
+    <AnimatePresence initial={false}>
+      {taunt && <Line key={taunt} colorLight={agent.colorLight} taunt={taunt} />}
     </AnimatePresence>
   );
 }
 
-function Bubble({ colorLight, taunt }: { colorLight: string; taunt: string }) {
+function Line({ colorLight, taunt }: { colorLight: string; taunt: string }) {
   const [typing, setTyping] = useState(true);
   useEffect(() => {
     const t = window.setTimeout(() => setTyping(false), 650);
@@ -110,19 +114,23 @@ function Bubble({ colorLight, taunt }: { colorLight: string; taunt: string }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.85, x: -6 }}
-      animate={{ opacity: 1, scale: 1, x: 0 }}
-      exit={{ opacity: 0, scale: 0.85 }}
-      transition={{ duration: 0.16, ease: 'easeOut' }}
-      className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-30 w-max whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-medium text-ivory pointer-events-none"
-      style={{
-        background: 'rgba(255,255,255,0.08)',
-        border: '1px solid rgba(255,255,255,0.14)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
-      }}
+      initial={{ opacity: 0, y: -4, height: 0 }}
+      animate={{ opacity: 1, y: 0, height: 'auto' }}
+      exit={{ opacity: 0, y: -4, height: 0 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
+      className="overflow-hidden"
     >
-      {typing ? <TypingDots color={colorLight} /> : taunt}
+      <span
+        className="inline-block max-w-full px-2.5 py-1 rounded-lg text-[12px] font-medium text-ivory leading-snug"
+        style={{
+          background: 'rgba(255,255,255,0.07)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+        }}
+      >
+        {typing ? <TypingDots color={colorLight} /> : taunt}
+      </span>
     </motion.div>
   );
 }
