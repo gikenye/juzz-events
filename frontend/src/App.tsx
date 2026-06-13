@@ -39,6 +39,9 @@ export default function App() {
     const auth = useAuthStore.getState();
     auth.detectMiniPay();
     auth.bindSocket();
+    // MiniPay auto-connects silently (no button, no onboarding) and we read the
+    // user's on-chain stablecoins up front — they land straight in the app.
+    if (useAuthStore.getState().isMiniPay) void auth.connectInjected(true);
     useTournamentStore.getState().bind();
   }, []);
 
