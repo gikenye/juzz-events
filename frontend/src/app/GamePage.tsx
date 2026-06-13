@@ -15,7 +15,7 @@ import type { Agent } from '../types';
 import { buildCupVM, type MatchVM } from '../lib/tournamentView';
 import { capturedFromFen } from '../lib/chessFen';
 import { useLiveClocks } from '../lib/useLiveClocks';
-import { useBotBanter } from '../hooks/useBotBanter';
+import { useServerTaunt } from '../hooks/useServerTaunt';
 import type { GameResult } from '../lib/types';
 import { ChessBoard } from '../components/chess/ChessBoard';
 import { AgentCard } from '../components/chess/AgentCard';
@@ -123,7 +123,6 @@ function LiveArena({ match, cupName, agentA, agentB, countdownTarget }: {
 }) {
   const gameId = useGameStore(s => s.gameId);
   const fen = useGameStore(s => s.fen);
-  const moveNumber = useGameStore(s => s.moveNumber);
   const captured = useGameStore(s => s.capturedPieces);
   const isFinished = useGameStore(s => s.isFinished);
   const result = useGameStore(s => s.result);
@@ -136,14 +135,9 @@ function LiveArena({ match, cupName, agentA, agentB, countdownTarget }: {
   const turn = fen.split(' ')[1];
   const winner = isFinished && match.winnerId
     ? (match.winnerId === agentA.id ? agentA : agentB) : null;
-  // Winning seat for the banter gloat/cope (a = white seat, b = black seat).
-  const winnerSeat = winner ? (winner === whiteAgent ? 'a' : 'b') : null;
 
-  // Live trash talk, driven by the server move stream.
-  const banter = useBotBanter({
-    gameId, moveNumber, fen, turn, finished: isFinished, winnerSeat,
-    whiteAgentId: whiteAgent.id, blackAgentId: blackAgent.id,
-  });
+  // Live trash talk — server-authored, broadcast to every viewer.
+  const taunt = useServerTaunt(gameId);
 
   return (
     <ArenaShell title={`${cupName} · ${match.code}`}>
@@ -155,11 +149,11 @@ function LiveArena({ match, cupName, agentA, agentB, countdownTarget }: {
           <div className="flex flex-col gap-1.5">
             <AgentCard agent={blackAgent} isActive={turn === 'b' && !isFinished}
                        capturedPieces={captured.byBlack} capturedIsWhite clockMs={clocks.black}
-                       taunt={banter?.speaker === 'b' ? banter.text : null} />
+                       taunt={taunt?.seat === 'black' ? taunt.text : null} />
             <ChessBoard />
             <AgentCard agent={whiteAgent} isActive={turn === 'w' && !isFinished}
                        capturedPieces={captured.byWhite} clockMs={clocks.white}
-                       taunt={banter?.speaker === 'a' ? banter.text : null} />
+                       taunt={taunt?.seat === 'white' ? taunt.text : null} />
           </div>
         </GlassPanel>
         <div className="lg:sticky lg:top-20 lg:self-start">

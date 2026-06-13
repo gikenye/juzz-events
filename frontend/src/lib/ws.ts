@@ -22,6 +22,7 @@ type Inbound =
   | { type: 'user_event'; event: UserEvent }
   | { type: 'tournament_subscribed'; snapshot: TournamentSnapshot }
   | { type: 'tournament_event'; event: TournamentEvent }
+  | { type: 'agent_taunt'; game_id: string; seat: string; agent_id: string; text: string }
   | WsError
   | { type: 'pong' }
   | { type: string; [k: string]: unknown };
@@ -40,6 +41,7 @@ interface Events {
   user_event: UserEvent;
   tournament_subscribed: TournamentSnapshot;
   tournament_event: TournamentEvent;
+  agent_taunt: { gameId: string; seat: string; agentId: string; text: string };
   error: WsError;
 }
 
@@ -135,6 +137,10 @@ export class JuzzSocket {
       case 'user_event': return this.emit('user_event', (msg as { event: UserEvent }).event);
       case 'tournament_subscribed': return this.emit('tournament_subscribed', (msg as { snapshot: TournamentSnapshot }).snapshot);
       case 'tournament_event': return this.emit('tournament_event', (msg as { event: TournamentEvent }).event);
+      case 'agent_taunt': {
+        const t = msg as { game_id: string; seat: string; agent_id: string; text: string };
+        return this.emit('agent_taunt', { gameId: t.game_id, seat: t.seat, agentId: t.agent_id, text: t.text });
+      }
       case 'pong': return;
       case 'error': {
         const err = msg as WsError;
