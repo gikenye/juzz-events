@@ -14,6 +14,7 @@ import { getAgent, fallbackAgent, eloExpected } from '../lib/agents';
 import type { Agent } from '../types';
 import { buildCupVM, type MatchVM } from '../lib/tournamentView';
 import { capturedFromFen } from '../lib/chessFen';
+import { useLiveClocks } from '../lib/useLiveClocks';
 import type { GameResult } from '../lib/types';
 import { ChessBoard } from '../components/chess/ChessBoard';
 import { AgentCard } from '../components/chess/AgentCard';
@@ -124,6 +125,7 @@ function LiveArena({ match, cupName, agentA, agentB, countdownTarget }: {
   const isFinished = useGameStore(s => s.isFinished);
   const result = useGameStore(s => s.result);
   const players = useGameStore(s => s.players);
+  const clocks = useLiveClocks(); // real server clocks { white, black } in ms
 
   // Seats can swap on rematches — colour by seat, not bracket side.
   const whiteAgent = players.white?.agent_id === agentB.id ? agentB : agentA;
@@ -141,10 +143,10 @@ function LiveArena({ match, cupName, agentA, agentB, countdownTarget }: {
         <GlassPanel>
           <div className="flex flex-col gap-1.5">
             <AgentCard agent={blackAgent} isActive={turn === 'b' && !isFinished}
-                       capturedPieces={captured.byBlack} capturedIsWhite />
+                       capturedPieces={captured.byBlack} capturedIsWhite clockMs={clocks.black} />
             <ChessBoard />
             <AgentCard agent={whiteAgent} isActive={turn === 'w' && !isFinished}
-                       capturedPieces={captured.byWhite} />
+                       capturedPieces={captured.byWhite} clockMs={clocks.white} />
           </div>
         </GlassPanel>
         <div className="lg:sticky lg:top-20 lg:self-start">

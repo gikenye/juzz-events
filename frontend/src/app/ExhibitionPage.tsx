@@ -5,6 +5,7 @@ import { useGameStore } from '../store/gameStore';
 import { useMarketStore } from '../store/marketStore';
 import { usePositionsStore } from '../store/positionsStore';
 import { fallbackAgent } from '../lib/agents';
+import { useLiveClocks } from '../lib/useLiveClocks';
 import { ChessBoard } from '../components/chess/ChessBoard';
 import { AgentCard } from '../components/chess/AgentCard';
 import { MarketPanel } from '../components/market/MarketPanel';
@@ -17,6 +18,7 @@ export function ExhibitionPage() {
   const isFinished = useGameStore(s => s.isFinished);
   const players = useGameStore(s => s.players);
   const waiting = useGameStore(s => s.waiting);
+  const clocks = useLiveClocks();
 
   useEffect(() => {
     useGameStore.getState().start();
@@ -39,10 +41,10 @@ export function ExhibitionPage() {
             <GlassPanel>
               <div className="flex flex-col gap-1.5">
                 <AgentCard agent={black} isActive={turn === 'b' && !isFinished}
-                           capturedPieces={captured.byBlack} capturedIsWhite />
+                           capturedPieces={captured.byBlack} capturedIsWhite clockMs={clocks.black} />
                 <ChessBoard />
                 <AgentCard agent={white} isActive={turn === 'w' && !isFinished}
-                           capturedPieces={captured.byWhite} />
+                           capturedPieces={captured.byWhite} clockMs={clocks.white} />
               </div>
             </GlassPanel>
             <div className="lg:sticky lg:top-20 lg:self-start">
