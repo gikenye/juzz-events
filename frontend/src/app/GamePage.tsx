@@ -97,8 +97,8 @@ export function GamePage() {
   // ── Upcoming with known participants ──
   const pa = eloExpected(agentA.elo, agentB.elo);
   const preview: SlotView[] = [
-    { key: 'a', label: agentA.name.replace(/^Agent\s+/, ''), color: agentA.color, prob: pa },
-    { key: 'b', label: agentB.name.replace(/^Agent\s+/, ''), color: agentB.color, prob: 1 - pa },
+    { key: 'a', label: agentA.name.replace(/^Agent\s+/, ''), color: agentA.color, prob: pa, agent: agentA },
+    { key: 'b', label: agentB.name.replace(/^Agent\s+/, ''), color: agentB.color, prob: 1 - pa, agent: agentB },
   ];
   return (
     <ArenaShell title={`${vm.name} · ${match.code}`}>
@@ -163,9 +163,7 @@ function LiveArena({ match, cupName, agentA, agentB, countdownTarget }: {
           </div>
         </GlassPanel>
         <div className="lg:sticky lg:top-20 lg:self-start">
-          <GlassPanel>
-            <MarketPanel />
-          </GlassPanel>
+          <MarketPanel />
         </div>
       </div>
     </ArenaShell>

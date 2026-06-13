@@ -63,9 +63,7 @@ export function ExhibitionPage() {
               </div>
             </GlassPanel>
             <div className="lg:sticky lg:top-20 lg:self-start">
-              <GlassPanel>
-                <MarketPanel />
-              </GlassPanel>
+              <MarketPanel />
             </div>
           </div>
         )}
