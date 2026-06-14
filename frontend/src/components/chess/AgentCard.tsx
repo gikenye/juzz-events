@@ -32,7 +32,7 @@ export function AgentCard({ agent, isActive, capturedPieces = [], capturedIsWhit
         <AgentAvatar agent={agent} isActive={isActive} />
 
         <div className="shrink-0 flex items-center gap-1.5">
-          <span style={{ fontFamily: "'Cormorant Garamond', serif", color: '#FFD0A0', fontSize: 16, fontWeight: 600, letterSpacing: 0.5 }}>{agent.name.replace(/^Agent\s+/i, '')}</span>
+          <span style={{ fontFamily: "'Cinzel', serif", color: '#F5F0E8', fontSize: 15, fontWeight: 600, letterSpacing: 0.5 }}>{agent.name.replace(/^Agent\s+/i, '')}</span>
           {isActive && (
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: agent.color }} />
           )}

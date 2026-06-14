@@ -24,6 +24,7 @@ import { OddsDisplay, type SlotView } from '../components/market/OddsDisplay';
 import { SettlementBanner } from '../components/market/SettlementBanner';
 import { Countdown } from '../components/tournament/Countdown';
 import { BattleBackdrop, GlassPanel } from '../components/layout/BattleBackdrop';
+import { moveLogEventsUrl, moveLogGameId } from '../lib/config';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -140,7 +141,7 @@ function LiveArena({ match, cupName, agentA, agentB, countdownTarget }: {
   const taunt = useServerTaunt(gameId);
 
   return (
-    <ArenaShell title={`${cupName} · ${match.code}`}>
+    <ArenaShell title={`${cupName} · ${match.code}`} gameId={match.gameId}>
       <SettlementBanner />
       {winner && <WinnerBanner name={winner.name} detail={result ? RESULT_TEXT[result] : undefined} />}
       {countdownTarget > 0 && <CountdownBanner target={countdownTarget} />}
@@ -180,7 +181,7 @@ function CompletedArena({ cupName, match, agentA, agentB }: {
   const caps = useMemo(() => capturedFromFen(finalFen ?? START_FEN), [finalFen]);
 
   return (
-    <ArenaShell title={`${cupName} · ${match.code}`}>
+    <ArenaShell title={`${cupName} · ${match.code}`} gameId={match.gameId}>
       <WinnerBanner name={winner.name} />
       <GlassPanel className="max-w-[480px] mx-auto">
         <div className="flex flex-col gap-1.5">
@@ -194,17 +195,39 @@ function CompletedArena({ cupName, match, agentA, agentB }: {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────
-function ArenaShell({ title, children }: { title: string; children: React.ReactNode }) {
+function ArenaShell({ title, gameId, children }: { title: string; gameId?: string | null; children: React.ReactNode }) {
   return (
     <BattleBackdrop>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5">
         <Link to="/games" className="inline-flex items-center gap-1.5 text-muted hover:text-gold text-sm mb-4 transition-colors">
           ← All games
         </Link>
-        <h1 className="font-display text-ivory text-xl font-bold mb-4">{title}</h1>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h1 className="font-display text-ivory text-xl font-bold">{title}</h1>
+          <OnChainBadge gameId={gameId} />
+        </div>
         {children}
       </div>
     </BattleBackdrop>
+  );
+}
+
+/** Every move in this game is committed on-chain (MoveLog). Links to the live
+ *  contract event log so anyone can verify juzz didn't fake the outcome. */
+function OnChainBadge({ gameId }: { gameId?: string | null }) {
+  return (
+    <a
+      href={moveLogEventsUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={gameId ? `On-chain game id: ${moveLogGameId(gameId)}` : 'Moves attested on Celo'}
+      className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors"
+      style={{ borderColor: 'rgba(201,162,39,0.35)', color: '#C9A227', background: 'rgba(201,162,39,0.06)' }}
+    >
+      <span aria-hidden>⛓</span>
+      Verified on-chain
+      <span aria-hidden style={{ opacity: 0.7 }}>↗</span>
+    </a>
   );
 }
 

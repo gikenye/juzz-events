@@ -1,6 +1,22 @@
 import { Chessboard } from 'react-chessboard';
 import { useGameStore } from '../../store/gameStore';
 
+const PIECE_TYPES = ['wP', 'wN', 'wB', 'wR', 'wQ', 'wK', 'bP', 'bN', 'bB', 'bR', 'bQ', 'bK'];
+
+const customPieces = Object.fromEntries(
+  PIECE_TYPES.map(pt => [
+    pt,
+    () => (
+      <img
+        src={`/pieces/${pt}.svg`}
+        alt={pt}
+        style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
+        draggable={false}
+      />
+    ),
+  ]),
+);
+
 interface ChessBoardProps {
   /** Provide a fen to render a specific position (non-live views); omit to follow the live game store. */
   fen?: string;
@@ -16,8 +32,8 @@ export function ChessBoard({ fen: fenProp, lastMove: lastMoveProp }: ChessBoardP
 
   const squareStyles: Record<string, React.CSSProperties> = {};
   if (lastMove) {
-    squareStyles[lastMove.from] = { background: 'rgba(207, 170, 77, 0.45)' };
-    squareStyles[lastMove.to] = { background: 'rgba(207, 170, 77, 0.65)' };
+    squareStyles[lastMove.from] = { background: 'rgba(201, 162, 39, 0.3)' };
+    squareStyles[lastMove.to] = { background: 'rgba(201, 162, 39, 0.45)' };
   }
 
   return (
@@ -30,6 +46,7 @@ export function ChessBoard({ fen: fenProp, lastMove: lastMoveProp }: ChessBoardP
           allowDragging: false,
           darkSquareStyle: { backgroundColor: '#B58863' },
           lightSquareStyle: { backgroundColor: '#F0D9B5' },
+          pieces: customPieces,
           squareStyles,
           boardOrientation: 'white',
           boardStyle: { borderRadius: '0px' },

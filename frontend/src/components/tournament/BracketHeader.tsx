@@ -36,62 +36,54 @@ export function BracketHeader({ vm }: { vm: CupVM }) {
     ? getAgent(vm.champion) ?? fallbackAgent(vm.champion) : null;
   const stage = vm.matches.find(m => m.isCurrent)?.stage
     ?? vm.matches.find(m => m.phase !== 'completed')?.stage ?? 'quarter';
-  const matchesPlayed = vm.matches.filter(m => m.phase === 'completed').length;
-  const totalMatches = vm.matches.length || 7;
 
   return (
     <div
-      className="rounded-xl border overflow-hidden"
+      className="rounded-xl border p-4 sm:p-5 flex items-center justify-between gap-4 flex-wrap"
       style={{
-        background: 'rgba(10,4,4,0.50)',
-        borderColor: 'rgba(255,255,255,0.09)',
-        backdropFilter: 'blur(14px)',
-        WebkitBackdropFilter: 'blur(14px)',
-        boxShadow: '0 2px 32px rgba(0,0,0,0.45)',
+        background: 'rgba(10,4,4,0.45)',
+        borderColor: 'rgba(255,255,255,0.08)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        boxShadow: '0 2px 24px rgba(0,0,0,0.35)',
       }}
     >
-      <div className="p-4 sm:p-5 flex items-center justify-between gap-4 flex-wrap">
-        {/* Left: chess motif + title */}
-        <div className="flex items-center gap-3">
-          <ChessFragment />
+      {/* Left: chess motif + title */}
+      <div className="flex items-center gap-3">
+        <ChessFragment />
+        <div>
+          <div
+            className="text-[10px] font-bold uppercase tracking-[0.22em] mb-0.5"
+            style={{ color: '#C9A227' }}
+          >
+            {vm.name || 'Live Tournament'}
+          </div>
+          <h1
+            className="font-display text-ivory font-bold leading-tight"
+            style={{ fontSize: 'clamp(1.1rem, 4vw, 1.6rem)' }}
+          >
+            {isChampion ? 'Champion Crowned' : STAGE_LABEL[stage]}
+          </h1>
+        </div>
+      </div>
+
+      {/* Right: champion badge only */}
+      {champ && (
+        <div
+          className="flex items-center gap-3 rounded-lg border px-3 py-2"
+          style={{ borderColor: 'rgba(201,162,39,0.35)', background: 'rgba(201,162,39,0.07)' }}
+        >
+          <AgentAvatar agent={champ} className="w-8 h-8" />
           <div>
-            <div
-              className="text-[10px] font-bold tracking-[0.22em] mb-0.5"
-              style={{ color: '#C9A227' }}
-            >
-              {vm.name || 'LIVE TOURNAMENT'}
+            <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#C9A227' }}>
+              ♛ Champion
             </div>
-            <h1
-              className="font-sans text-ivory font-bold leading-tight"
-              style={{ fontSize: 'clamp(1.1rem, 4vw, 1.6rem)' }}
-            >
-              {isChampion ? 'Champion crowned' : STAGE_LABEL[stage]}
-            </h1>
+            <div className="font-display text-ivory font-semibold text-sm leading-tight">
+              {champ.name}
+            </div>
           </div>
         </div>
-
-        {/* Right: champion badge or match progress */}
-        {champ ? (
-          <div
-            className="flex items-center gap-3 rounded-lg border px-3 py-2"
-            style={{ borderColor: 'rgba(201,162,39,0.35)', background: 'rgba(201,162,39,0.07)' }}
-          >
-            <AgentAvatar agent={champ} className="w-8 h-8" />
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#C9A227' }}>
-                ♛ Champion
-              </div>
-              <div className="font-display text-ivory font-semibold text-sm leading-tight">
-                {champ.name}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: '#9A9AAF' }}>
-            {matchesPlayed} / {totalMatches} played
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
