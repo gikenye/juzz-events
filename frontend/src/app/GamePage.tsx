@@ -23,7 +23,6 @@ import { MarketPanel } from '../components/market/MarketPanel';
 import { OddsDisplay, type SlotView } from '../components/market/OddsDisplay';
 import { SettlementBanner } from '../components/market/SettlementBanner';
 import { Countdown } from '../components/tournament/Countdown';
-import { BattleBackdrop, GlassPanel } from '../components/layout/BattleBackdrop';
 import { moveLogEventsUrl, moveLogGameId } from '../lib/config';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -73,16 +72,14 @@ export function GamePage() {
   if (!agentA || !agentB) {
     return (
       <ArenaShell match={match}>
-        <GlassPanel className="max-w-lg mx-auto">
-          <div className="flex items-center justify-center gap-6 py-8 text-center">
-            <TbdSlot label={`Winner of ${match.sourceA ?? '—'}`} />
-            <span className="text-muted font-display text-xl">vs</span>
-            <TbdSlot label={`Winner of ${match.sourceB ?? '—'}`} />
-          </div>
-          <p className="text-center text-muted text-sm">
-            The two players are decided once the feeder matches finish.
-          </p>
-        </GlassPanel>
+        <div className="flex items-center justify-center gap-6 py-10 text-center">
+          <TbdSlot label={`Winner of ${match.sourceA ?? '—'}`} />
+          <span className="text-muted font-display text-xl">vs</span>
+          <TbdSlot label={`Winner of ${match.sourceB ?? '—'}`} />
+        </div>
+        <p className="text-center text-muted text-sm">
+          The two players are decided once the feeder matches finish.
+        </p>
       </ArenaShell>
     );
   }
@@ -103,17 +100,15 @@ export function GamePage() {
   ];
   return (
     <ArenaShell match={match}>
-      <GlassPanel className="max-w-[480px] mx-auto">
-        <div className="flex flex-col gap-1.5">
-          <AgentCard agent={agentB} isActive={false} />
-          <ChessBoard fen={START_FEN} />
-          <AgentCard agent={agentA} isActive={false} />
-        </div>
-        <div className="mt-4">
-          <p className="text-center text-muted text-xs uppercase tracking-widest mb-2">Pre-match win chance</p>
-          <OddsDisplay outcomes={preview} readOnly />
-        </div>
-      </GlassPanel>
+      <div className="flex flex-col gap-1.5 max-w-[460px] mx-auto">
+        <AgentCard agent={agentB} isActive={false} />
+        <ChessBoard fen={START_FEN} />
+        <AgentCard agent={agentA} isActive={false} />
+      </div>
+      <div className="max-w-[460px] mx-auto mt-4">
+        <p className="text-center text-muted text-xs uppercase tracking-widest mb-2">Pre-match win chance</p>
+        <OddsDisplay outcomes={preview} readOnly />
+      </div>
     </ArenaShell>
   );
 }
@@ -146,18 +141,16 @@ function LiveArena({ match, agentA, agentB, countdownTarget }: {
       {winner && <WinnerBanner name={winner.name} detail={result ? RESULT_TEXT[result] : undefined} />}
       {countdownTarget > 0 && <CountdownBanner target={countdownTarget} />}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-        <GlassPanel>
-          <div className="flex flex-col gap-1.5">
-            <AgentCard agent={blackAgent} isActive={turn === 'b' && !isFinished}
-                       capturedPieces={captured.byBlack} capturedIsWhite clockMs={clocks.black}
-                       taunt={taunt?.seat === 'black' ? taunt.text : null} />
-            <ChessBoard />
-            <AgentCard agent={whiteAgent} isActive={turn === 'w' && !isFinished}
-                       capturedPieces={captured.byWhite} clockMs={clocks.white}
-                       taunt={taunt?.seat === 'white' ? taunt.text : null} />
-          </div>
+        <div className="flex flex-col gap-1.5">
+          <AgentCard agent={blackAgent} isActive={turn === 'b' && !isFinished}
+                     capturedPieces={captured.byBlack} capturedIsWhite clockMs={clocks.black}
+                     taunt={taunt?.seat === 'black' ? taunt.text : null} />
+          <ChessBoard />
+          <AgentCard agent={whiteAgent} isActive={turn === 'w' && !isFinished}
+                     capturedPieces={captured.byWhite} clockMs={clocks.white}
+                     taunt={taunt?.seat === 'white' ? taunt.text : null} />
           <OnChainBadge gameId={gameId} />
-        </GlassPanel>
+        </div>
         <div className="lg:sticky lg:top-20 lg:self-start">
           <MarketPanel />
         </div>
@@ -184,14 +177,12 @@ function CompletedArena({ match, agentA, agentB }: {
   return (
     <ArenaShell match={match}>
       <WinnerBanner name={winner.name} />
-      <GlassPanel className="max-w-[480px] mx-auto">
-        <div className="flex flex-col gap-1.5">
-          <AgentCard agent={agentB} isActive={false} capturedPieces={caps.byBlack} capturedIsWhite />
-          <ChessBoard fen={finalFen ?? START_FEN} />
-          <AgentCard agent={agentA} isActive={false} capturedPieces={caps.byWhite} />
-        </div>
+      <div className="flex flex-col gap-1.5 max-w-[460px] mx-auto">
+        <AgentCard agent={agentB} isActive={false} capturedPieces={caps.byBlack} capturedIsWhite />
+        <ChessBoard fen={finalFen ?? START_FEN} />
+        <AgentCard agent={agentA} isActive={false} capturedPieces={caps.byWhite} />
         <OnChainBadge gameId={match.gameId} />
-      </GlassPanel>
+      </div>
     </ArenaShell>
   );
 }
@@ -208,15 +199,15 @@ function matchLabel(m: MatchVM): string {
 
 function ArenaShell({ match, children }: { match: MatchVM; children: React.ReactNode }) {
   return (
-    <BattleBackdrop>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5">
+    <motion.div className="min-h-screen bg-bg-base" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-6">
         <Link to="/games" className="inline-flex items-center gap-1.5 text-muted hover:text-gold text-sm mb-4 transition-colors">
           ← All games
         </Link>
         <h1 className="font-display text-ivory text-xl font-bold mb-4">{matchLabel(match)}</h1>
         {children}
       </div>
-    </BattleBackdrop>
+    </motion.div>
   );
 }
 
