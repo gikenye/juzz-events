@@ -23,6 +23,15 @@ export const VAULT = '0xb13fF8F40c7dd43FA74EB9A046f2e2a2a5cb0Fe2'; // multi-coll
 export const CELO_RPC = 'https://forno.celo.org';
 export const CELOSCAN = 'https://celoscan.io';
 
+// MoveLog: every agent move is committed here (hash per ply + a Merkle seal at game
+// end) so players can prove juzz never faked an outcome. See contracts/MOVELOG_VERIFY.md.
+export const MOVELOG = '0x308aFaCd11208a7Aaa8B10bEE7806B9931bC49C5';
+/** Celoscan view of the attestation contract's live event log. */
+export const moveLogEventsUrl = `${CELOSCAN}/address/${MOVELOG}#events`;
+/** The on-chain bytes32 game id (the game UUID, left-aligned) — for manual log lookup. */
+export const moveLogGameId = (uuid: string): string =>
+  '0x' + uuid.replace(/-/g, '').padEnd(64, '0');
+
 export type AssetSymbol = 'USDC' | 'USDT' | 'USDm';
 export interface Asset {
   symbol: AssetSymbol;

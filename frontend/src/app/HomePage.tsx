@@ -182,51 +182,51 @@ export function HomePage() {
           </div>
 
           {/* Glass card — WagerGlass design, HomeGambit wording */}
-          <div style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', background: 'rgba(14,6,1,0.72)', border: '1px solid rgba(255,170,64,0.2)', boxShadow: '0 8px 48px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,170,64,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', background: 'rgba(14,6,1,0.72)', border: '1px solid rgba(201,162,39,0.2)', boxShadow: '0 8px 48px rgba(0,0,0,0.6), inset 0 1px 0 rgba(201,162,39,0.1)', borderRadius: 2, overflow: 'hidden' }}>
 
             <div style={{ padding: '18px 16px 0' }}>
               <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.34em', color: '#A08B6A', marginBottom: 12, textTransform: 'uppercase' }}>Choose Your Champion</div>
 
               {/* Agent cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'rgba(255,170,64,0.06)', padding: 1, marginBottom: 14 }}>
-                <button onClick={() => setPick('a')} style={{ padding: '14px 10px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, background: pick === 'a' ? 'rgba(255,170,64,0.1)' : 'rgba(10,4,1,0.65)', border: `1px solid ${pick === 'a' ? 'rgba(255,170,64,0.5)' : 'transparent'}`, transition: 'all 0.2s', position: 'relative' }}>
-                  {pick === 'a' && <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 32, height: 2, background: 'linear-gradient(90deg, transparent, #FFAA40, transparent)' }} />}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'rgba(201,162,39,0.06)', padding: 1, marginBottom: 14 }}>
+                <button onClick={() => setPick('a')} style={{ padding: '14px 10px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, background: pick === 'a' ? 'rgba(201,162,39,0.1)' : 'rgba(10,4,1,0.65)', border: `1px solid ${pick === 'a' ? 'rgba(201,162,39,0.5)' : 'transparent'}`, transition: 'all 0.2s', position: 'relative' }}>
+                  {pick === 'a' && <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 32, height: 2, background: 'linear-gradient(90deg, transparent, #C9A227, transparent)' }} />}
                   <AgentAvatar agent={MAXI} className="w-11 h-11" />
-                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.06em', color: pick === 'a' ? '#FFAA40' : '#C8B48A' }}>Maxi</span>
-                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 20, color: pick === 'a' ? '#FFAA40' : '#E8D4A0', textShadow: pick === 'a' ? '0 0 14px rgba(255,170,64,0.4)' : 'none' }}>{wagerOdds(PROB_A)}</span>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.06em', color: pick === 'a' ? '#C9A227' : '#C8B48A' }}>Maxi</span>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 20, color: pick === 'a' ? '#C9A227' : '#E8D4A0', textShadow: pick === 'a' ? '0 0 14px rgba(201,162,39,0.4)' : 'none' }}>{wagerOdds(PROB_A)}</span>
                 </button>
-                <button onClick={() => setPick('b')} style={{ padding: '14px 10px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, background: pick === 'b' ? 'rgba(255,106,0,0.1)' : 'rgba(10,4,1,0.65)', border: `1px solid ${pick === 'b' ? 'rgba(255,106,0,0.5)' : 'transparent'}`, transition: 'all 0.2s', position: 'relative' }}>
-                  {pick === 'b' && <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 32, height: 2, background: 'linear-gradient(90deg, transparent, #FF6A00, transparent)' }} />}
+                <button onClick={() => setPick('b')} style={{ padding: '14px 10px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, background: pick === 'b' ? 'rgba(226,197,71,0.1)' : 'rgba(10,4,1,0.65)', border: `1px solid ${pick === 'b' ? 'rgba(226,197,71,0.5)' : 'transparent'}`, transition: 'all 0.2s', position: 'relative' }}>
+                  {pick === 'b' && <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 32, height: 2, background: 'linear-gradient(90deg, transparent, #E2C547, transparent)' }} />}
                   <AgentAvatar agent={VEGA} className="w-11 h-11" />
-                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.06em', color: pick === 'b' ? '#FF6A00' : '#C8B48A' }}>Vega</span>
-                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 20, color: pick === 'b' ? '#FF6A00' : '#E8D4A0', textShadow: pick === 'b' ? '0 0 14px rgba(255,106,0,0.4)' : 'none' }}>{wagerOdds(PROB_B)}</span>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.06em', color: pick === 'b' ? '#E2C547' : '#C8B48A' }}>Vega</span>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 20, color: pick === 'b' ? '#E2C547' : '#E8D4A0', textShadow: pick === 'b' ? '0 0 14px rgba(226,197,71,0.4)' : 'none' }}>{wagerOdds(PROB_B)}</span>
                 </button>
               </div>
 
               {/* Prob bar */}
               <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden', marginBottom: 20 }}>
-                <div style={{ height: '100%', width: `${PROB_A * 100}%`, background: 'linear-gradient(90deg, rgba(255,170,64,0.55), #FFAA40 55%, #FF6A00)' }} />
+                <div style={{ height: '100%', width: `${PROB_A * 100}%`, background: 'linear-gradient(90deg, rgba(201,162,39,0.55), #C9A227 55%, #E2C547)' }} />
               </div>
 
               <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.34em', color: '#A08B6A', marginBottom: 12, textTransform: 'uppercase' }}>Stake Amount</div>
               <div style={{ display: 'flex', gap: 7, marginBottom: 20 }}>
                 {AMOUNTS.map((a) => (
-                  <button key={a} onClick={() => setAmount(a)} style={{ flex: 1, padding: '11px 0', fontFamily: "'Cinzel', serif", fontSize: 14, cursor: 'pointer', borderRadius: 40, border: `1px solid ${amount === a ? '#FFAA40' : 'rgba(160,139,106,0.3)'}`, background: amount === a ? 'rgba(255,170,64,0.14)' : 'rgba(14,7,1,0.5)', color: amount === a ? '#FFAA40' : '#C8B48A', transition: 'all 0.18s', boxShadow: amount === a ? '0 0 12px rgba(255,170,64,0.2)' : 'none' }}>
+                  <button key={a} onClick={() => setAmount(a)} style={{ flex: 1, padding: '11px 0', fontFamily: "'Cinzel', serif", fontSize: 14, cursor: 'pointer', borderRadius: 40, border: `1px solid ${amount === a ? '#C9A227' : 'rgba(160,139,106,0.3)'}`, background: amount === a ? 'rgba(201,162,39,0.14)' : 'rgba(14,7,1,0.5)', color: amount === a ? '#C9A227' : '#C8B48A', transition: 'all 0.18s', boxShadow: amount === a ? '0 0 12px rgba(201,162,39,0.2)' : 'none' }}>
                     ${a}
                   </button>
                 ))}
               </div>
 
-              <div style={{ background: 'rgba(50,34,14,0.7)', border: '1px solid rgba(255,170,64,0.22)', borderRadius: 2, padding: '14px 20px', marginBottom: 18, textAlign: 'center' }}>
+              <div style={{ background: 'rgba(50,34,14,0.7)', border: '1px solid rgba(201,162,39,0.22)', borderRadius: 2, padding: '14px 20px', marginBottom: 18, textAlign: 'center' }}>
                 <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: '#A08B6A', letterSpacing: '0.24em', marginBottom: 8 }}>POTENTIAL GLORY</div>
-                <div style={{ fontFamily: "'Cinzel', serif", fontSize: 32, color: payout ? '#FFAA40' : 'rgba(160,139,106,0.4)', letterSpacing: '0.05em', textShadow: payout ? '0 0 20px rgba(255,170,64,0.5)' : 'none' }}>
+                <div style={{ fontFamily: "'Cinzel', serif", fontSize: 32, color: payout ? '#C9A227' : 'rgba(160,139,106,0.4)', letterSpacing: '0.05em', textShadow: payout ? '0 0 20px rgba(201,162,39,0.5)' : 'none' }}>
                   {payout ? `$${payout}` : '$—.——'}
                 </div>
               </div>
             </div>
 
             <div style={{ padding: '0 16px 18px' }}>
-              <button style={{ fontFamily: "'Cinzel', serif", fontSize: 13, fontWeight: 700, letterSpacing: '0.26em', padding: '16px 24px', width: '100%', background: pick && amount ? 'linear-gradient(135deg, #9B1C1C, #FFAA40)' : 'rgba(80,60,28,0.5)', color: pick && amount ? '#0C0805' : '#A08B6A', border: `1px solid ${pick && amount ? 'transparent' : 'rgba(160,139,106,0.25)'}`, cursor: pick && amount ? 'pointer' : 'default', textTransform: 'uppercase', boxShadow: pick && amount ? '0 0 32px rgba(155,28,28,0.55)' : 'none', transition: 'all 0.3s', borderRadius: 2 }}>
+              <button style={{ fontFamily: "'Cinzel', serif", fontSize: 13, fontWeight: 700, letterSpacing: '0.26em', padding: '16px 24px', width: '100%', background: pick && amount ? 'linear-gradient(135deg, #9B1C1C, #C9A227)' : 'rgba(80,60,28,0.5)', color: pick && amount ? '#0C0805' : '#A08B6A', border: `1px solid ${pick && amount ? 'transparent' : 'rgba(160,139,106,0.25)'}`, cursor: pick && amount ? 'pointer' : 'default', textTransform: 'uppercase', boxShadow: pick && amount ? '0 0 32px rgba(155,28,28,0.55)' : 'none', transition: 'all 0.3s', borderRadius: 2 }}>
                 Seal the Wager
               </button>
             </div>
@@ -242,7 +242,7 @@ export function HomePage() {
           viewport={{ once: true, amount: 0 }}
           custom={0}
           variants={fadeUp}
-          className="font-sans text-4xl font-bold text-ivory mb-4"
+          className="font-display text-4xl font-bold text-ivory mb-4"
         >
           Ready to predict?
         </motion.h2>

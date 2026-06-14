@@ -37,7 +37,16 @@ function AgentSide({ agent, wins, losses, isWinner, dim, align }: AgentSideProps
         <div className={`flex items-center gap-1.5 ${right ? 'justify-end' : ''}`}>
           {isWinner && right && <span className="shrink-0 text-sm leading-none" style={{ color: '#C9A227' }}>♛</span>}
           <span className="text-sm font-bold truncate leading-tight" style={{ color: '#F5F0E8' }}>
-            {agent.name.replace(/^Agent\s+/i, '')}
+            {(() => {
+              const m = agent.name.match(/^(Agent\s+)(.*)$/i);
+              if (!m) return agent.name;
+              return (
+                <>
+                  <span className="hidden sm:inline">{m[1]}</span>
+                  {m[2]}
+                </>
+              );
+            })()}
           </span>
           {isWinner && !right && <span className="shrink-0 text-sm leading-none" style={{ color: '#C9A227' }}>♛</span>}
         </div>
@@ -183,7 +192,7 @@ export function MatchCard({ match, matches, featured = false, liveProb = null, c
         {/* Card header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="font-sans text-[10px] font-bold tracking-[0.18em] shrink-0" style={{ color: '#C9A227' }}>
+            <span className="font-display text-[10px] font-bold uppercase tracking-[0.18em] shrink-0" style={{ color: '#C9A227' }}>
               {match.code}
             </span>
             <span className="shrink-0 text-[10px] select-none" style={{ color: '#2A2A35' }}>·</span>
@@ -197,7 +206,7 @@ export function MatchCard({ match, matches, featured = false, liveProb = null, c
             {/* Agent A  VS  Agent B */}
             <div className="flex items-center">
               <AgentSide agent={a} wins={recA.w} losses={recA.l} isWinner={revealed && winnerIsA} dim={dimA} align="left" />
-              <span className="shrink-0 text-[10px] font-black tracking-widest select-none px-1" style={{ color: '#4a4a5a' }}>
+              <span className="shrink-0 text-[10px] font-black tracking-widest select-none px-1" style={{ color: '#2F2F3C' }}>
                 VS
               </span>
               <AgentSide agent={b} wins={recB.w} losses={recB.l} isWinner={revealed && !winnerIsA} dim={dimB} align="right" />
@@ -222,7 +231,7 @@ export function MatchCard({ match, matches, featured = false, liveProb = null, c
 
             {/* Probability bar */}
             <div className="mt-2.5">
-              <div className="h-1.5 rounded-full overflow-hidden flex">
+              <div className="h-1 rounded-full overflow-hidden flex">
                 <div
                   style={{
                     width: `${prob.a * 100}%`,
@@ -247,7 +256,7 @@ export function MatchCard({ match, matches, featured = false, liveProb = null, c
         ) : (
           <div className="flex items-center">
             <TbdSide label={`Winner of ${match.sourceA ?? '—'}`} align="left" />
-            <span className="shrink-0 text-[10px] font-black tracking-widest select-none px-1" style={{ color: '#4a4a5a' }}>
+            <span className="shrink-0 text-[10px] font-black tracking-widest select-none px-1" style={{ color: '#2F2F3C' }}>
               VS
             </span>
             <TbdSide label={`Winner of ${match.sourceB ?? '—'}`} align="right" />
