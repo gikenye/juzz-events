@@ -16,6 +16,7 @@ import { AgentCard } from '../components/chess/AgentCard';
 import { MarketPanel } from '../components/market/MarketPanel';
 import { SettlementBanner } from '../components/market/SettlementBanner';
 import { Countdown } from '../components/tournament/Countdown';
+import { LastKnightBg } from '../components/layout/LastKnightBg';
 
 export function ExhibitionPage() {
   const gameId = useGameStore(s => s.gameId);
@@ -41,8 +42,9 @@ export function ExhibitionPage() {
   const idle = waiting || !white || !black;
 
   return (
-    <motion.div className="min-h-screen bg-bg-base" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-6">
+    <motion.div className="min-h-screen relative" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <LastKnightBg />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-6">
         <SettlementBanner />
         {idle ? (
           <Intermission />
