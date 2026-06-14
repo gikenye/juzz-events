@@ -13,7 +13,6 @@ import { usePositionsStore, type SettledPrediction } from '../store/positionsSto
 import { BuyFunds } from '../components/wallet/BuyFunds';
 import { TokenIcon } from '../components/ui/TokenIcon';
 import { txErrorMessage } from '../lib/txErrors';
-import { BattleBackdrop } from '../components/layout/BattleBackdrop';
 
 const toTokenBase = (usd: number, decimals: number) => BigInt(Math.round(usd * 10 ** decimals)).toString();
 const money = (micro: string | number) => (Number(micro) / 1e6).toFixed(2);
@@ -47,13 +46,13 @@ export function WalletPage() {
   else                         body = <SignInPrompt />;
 
   return (
-    <BattleBackdrop>
-      <div className="max-w-lg mx-auto px-4 pb-10">
+    <div className="min-h-screen bg-bg-base">
+      <div className="max-w-lg mx-auto px-4 pt-24 pb-10">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           {body}
         </motion.div>
       </div>
-    </BattleBackdrop>
+    </div>
   );
 }
 
