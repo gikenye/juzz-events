@@ -13,6 +13,7 @@ import { usePositionsStore, type SettledPrediction } from '../store/positionsSto
 import { BuyFunds } from '../components/wallet/BuyFunds';
 import { TokenIcon } from '../components/ui/TokenIcon';
 import { txErrorMessage } from '../lib/txErrors';
+import { BattleBackdrop } from '../components/layout/BattleBackdrop';
 
 const toTokenBase = (usd: number, decimals: number) => BigInt(Math.round(usd * 10 ** decimals)).toString();
 const money = (micro: string | number) => (Number(micro) / 1e6).toFixed(2);
@@ -46,13 +47,13 @@ export function WalletPage() {
   else                         body = <SignInPrompt />;
 
   return (
-    <div className="min-h-screen bg-bg-base">
-      <div className="max-w-lg mx-auto px-4 pt-24 pb-10">
+    <BattleBackdrop>
+      <div className="max-w-lg mx-auto px-4 pb-10">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           {body}
         </motion.div>
       </div>
-    </div>
+    </BattleBackdrop>
   );
 }
 
@@ -105,9 +106,9 @@ function AccountHome() {
   const toggle = (p: PanelKind) => setPanel(cur => (cur === p ? 'none' : p));
 
   return (
-    <div className="rounded-2xl border border-border overflow-hidden bg-bg-card">
-      {/* Hero — identity + the number that matters */}
-      <div className="p-6 pb-5" style={{ background: 'linear-gradient(150deg, #00B4A612 0%, rgba(20,20,24,0) 65%)' }}>
+    <div className="rounded-2xl border overflow-hidden bg-bg-card" style={{ borderColor: 'rgba(0,180,166,0.30)' }}>
+      {/* Hero — identity + the number that matters (leakey gotham card) */}
+      <div className="p-6 pb-5" style={{ background: 'linear-gradient(135deg, #00B4A615 0%, #141418 60%)' }}>
         <div className="flex items-center justify-between mb-5">
           <span className="text-muted text-sm truncate">{user?.email ?? 'MiniPay'}</span>
           <button onClick={logout} className="text-muted text-xs hover:text-ivory transition-colors shrink-0 ml-3">sign out</button>

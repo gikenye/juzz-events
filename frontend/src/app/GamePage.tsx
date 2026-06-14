@@ -1,7 +1,7 @@
 // One match's arena: live board + market when it plays, replayed final
 // position when done, feeder view while TBD. Everything is server truth —
 // the match identity is a bracket position (stable across draw rematches).
-// Shares the Battle Eve backdrop + glass card language with /games.
+// Shares the leakey backdrop + card language with /games.
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useParams, Navigate, Link } from 'react-router-dom';
@@ -72,7 +72,7 @@ export function GamePage() {
   // ── TBD: feeders not decided yet ──
   if (!agentA || !agentB) {
     return (
-      <ArenaShell title={`${vm.name} · ${match.code}`}>
+      <ArenaShell match={match}>
         <GlassPanel className="max-w-lg mx-auto">
           <div className="flex items-center justify-center gap-6 py-8 text-center">
             <TbdSlot label={`Winner of ${match.sourceA ?? '—'}`} />
@@ -88,11 +88,11 @@ export function GamePage() {
   }
 
   if (match.phase === 'live' || match.phase === 'countdown') {
-    return <LiveArena match={match} cupName={vm.name} agentA={agentA} agentB={agentB}
+    return <LiveArena match={match} agentA={agentA} agentB={agentB}
                       countdownTarget={match.phase === 'countdown' ? vm.startsAtMs + offset : 0} />;
   }
   if (match.phase === 'completed') {
-    return <CompletedArena cupName={vm.name} match={match} agentA={agentA} agentB={agentB} />;
+    return <CompletedArena match={match} agentA={agentA} agentB={agentB} />;
   }
 
   // ── Upcoming with known participants ──
@@ -102,7 +102,7 @@ export function GamePage() {
     { key: 'b', label: agentB.name.replace(/^Agent\s+/, ''), color: agentB.color, prob: 1 - pa, agent: agentB },
   ];
   return (
-    <ArenaShell title={`${vm.name} · ${match.code}`}>
+    <ArenaShell match={match}>
       <GlassPanel className="max-w-[480px] mx-auto">
         <div className="flex flex-col gap-1.5">
           <AgentCard agent={agentB} isActive={false} />
@@ -119,8 +119,8 @@ export function GamePage() {
 }
 
 // ── Live (or pre-game countdown) ──────────────────────────────────────────
-function LiveArena({ match, cupName, agentA, agentB, countdownTarget }: {
-  match: MatchVM; cupName: string; agentA: Agent; agentB: Agent; countdownTarget: number;
+function LiveArena({ match, agentA, agentB, countdownTarget }: {
+  match: MatchVM; agentA: Agent; agentB: Agent; countdownTarget: number;
 }) {
   const gameId = useGameStore(s => s.gameId);
   const fen = useGameStore(s => s.fen);
@@ -141,7 +141,7 @@ function LiveArena({ match, cupName, agentA, agentB, countdownTarget }: {
   const taunt = useServerTaunt(gameId);
 
   return (
-    <ArenaShell title={`${cupName} · ${match.code}`} gameId={match.gameId}>
+    <ArenaShell match={match}>
       <SettlementBanner />
       {winner && <WinnerBanner name={winner.name} detail={result ? RESULT_TEXT[result] : undefined} />}
       {countdownTarget > 0 && <CountdownBanner target={countdownTarget} />}
@@ -156,6 +156,7 @@ function LiveArena({ match, cupName, agentA, agentB, countdownTarget }: {
                        capturedPieces={captured.byWhite} clockMs={clocks.white}
                        taunt={taunt?.seat === 'white' ? taunt.text : null} />
           </div>
+          <OnChainBadge gameId={gameId} />
         </GlassPanel>
         <div className="lg:sticky lg:top-20 lg:self-start">
           <MarketPanel />
@@ -166,8 +167,8 @@ function LiveArena({ match, cupName, agentA, agentB, countdownTarget }: {
 }
 
 // ── Completed: replayed final position ────────────────────────────────────
-function CompletedArena({ cupName, match, agentA, agentB }: {
-  cupName: string; match: MatchVM; agentA: Agent; agentB: Agent;
+function CompletedArena({ match, agentA, agentB }: {
+  match: MatchVM; agentA: Agent; agentB: Agent;
 }) {
   const [finalFen, setFinalFen] = useState<string | null>(null);
   useEffect(() => {
@@ -181,7 +182,7 @@ function CompletedArena({ cupName, match, agentA, agentB }: {
   const caps = useMemo(() => capturedFromFen(finalFen ?? START_FEN), [finalFen]);
 
   return (
-    <ArenaShell title={`${cupName} · ${match.code}`} gameId={match.gameId}>
+    <ArenaShell match={match}>
       <WinnerBanner name={winner.name} />
       <GlassPanel className="max-w-[480px] mx-auto">
         <div className="flex flex-col gap-1.5">
@@ -189,31 +190,38 @@ function CompletedArena({ cupName, match, agentA, agentB }: {
           <ChessBoard fen={finalFen ?? START_FEN} />
           <AgentCard agent={agentA} isActive={false} capturedPieces={caps.byWhite} />
         </div>
+        <OnChainBadge gameId={match.gameId} />
       </GlassPanel>
     </ArenaShell>
   );
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────
-function ArenaShell({ title, gameId, children }: { title: string; gameId?: string | null; children: React.ReactNode }) {
+const STAGE_LONG: Record<MatchVM['stage'], string> = {
+  quarter: 'Quarterfinal', semi: 'Semifinal', final: 'Championship Final',
+};
+/** Clean single-line arena title, leakey-style — never the cup-name/TC blob. */
+function matchLabel(m: MatchVM): string {
+  if (m.code === 'LIVE') return 'Exhibition match';
+  return m.stage === 'final' ? 'Championship Final' : `${STAGE_LONG[m.stage]} ${m.matchIndex + 1}`;
+}
+
+function ArenaShell({ match, children }: { match: MatchVM; children: React.ReactNode }) {
   return (
     <BattleBackdrop>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5">
         <Link to="/games" className="inline-flex items-center gap-1.5 text-muted hover:text-gold text-sm mb-4 transition-colors">
           ← All games
         </Link>
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <h1 className="font-display text-ivory text-xl font-bold">{title}</h1>
-          <OnChainBadge gameId={gameId} />
-        </div>
+        <h1 className="font-display text-ivory text-xl font-bold mb-4">{matchLabel(match)}</h1>
         {children}
       </div>
     </BattleBackdrop>
   );
 }
 
-/** Every move in this game is committed on-chain (MoveLog). Links to the live
- *  contract event log so anyone can verify juzz didn't fake the outcome. */
+/** Quiet line under the board: every move is committed on-chain (MoveLog), so
+ *  anyone can verify the outcome wasn't faked. Links the live contract log. */
 function OnChainBadge({ gameId }: { gameId?: string | null }) {
   return (
     <a
@@ -221,12 +229,11 @@ function OnChainBadge({ gameId }: { gameId?: string | null }) {
       target="_blank"
       rel="noopener noreferrer"
       title={gameId ? `On-chain game id: ${moveLogGameId(gameId)}` : 'Moves attested on Celo'}
-      className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors"
-      style={{ borderColor: 'rgba(201,162,39,0.35)', color: '#C9A227', background: 'rgba(201,162,39,0.06)' }}
+      className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-muted hover:text-gold transition-colors"
     >
       <span aria-hidden>⛓</span>
-      Verified on-chain
-      <span aria-hidden style={{ opacity: 0.7 }}>↗</span>
+      Every move verified on-chain
+      <span aria-hidden style={{ opacity: 0.6 }}>↗</span>
     </a>
   );
 }
