@@ -24,6 +24,7 @@ import { OddsDisplay, type SlotView } from '../components/market/OddsDisplay';
 import { SettlementBanner } from '../components/market/SettlementBanner';
 import { Countdown } from '../components/tournament/Countdown';
 import { moveLogEventsUrl, moveLogGameId } from '../lib/config';
+import { LastKnightBg } from '../components/layout/LastKnightBg';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -100,7 +101,7 @@ export function GamePage() {
   ];
   return (
     <ArenaShell match={match}>
-      <div className="flex flex-col gap-1.5 max-w-[460px] mx-auto">
+      <div className="flex flex-col gap-3 max-w-[460px] mx-auto">
         <AgentCard agent={agentB} isActive={false} />
         <ChessBoard fen={START_FEN} />
         <AgentCard agent={agentA} isActive={false} />
@@ -141,7 +142,7 @@ function LiveArena({ match, agentA, agentB, countdownTarget }: {
       {winner && <WinnerBanner name={winner.name} detail={result ? RESULT_TEXT[result] : undefined} />}
       {countdownTarget > 0 && <CountdownBanner target={countdownTarget} />}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-3">
           <AgentCard agent={blackAgent} isActive={turn === 'b' && !isFinished}
                      capturedPieces={captured.byBlack} capturedIsWhite clockMs={clocks.black}
                      taunt={taunt?.seat === 'black' ? taunt.text : null} />
@@ -177,7 +178,7 @@ function CompletedArena({ match, agentA, agentB }: {
   return (
     <ArenaShell match={match}>
       <WinnerBanner name={winner.name} />
-      <div className="flex flex-col gap-1.5 max-w-[460px] mx-auto">
+      <div className="flex flex-col gap-3 max-w-[460px] mx-auto">
         <AgentCard agent={agentB} isActive={false} capturedPieces={caps.byBlack} capturedIsWhite />
         <ChessBoard fen={finalFen ?? START_FEN} />
         <AgentCard agent={agentA} isActive={false} capturedPieces={caps.byWhite} />
@@ -198,8 +199,9 @@ function matchLabel(m: MatchVM): string {
 
 function ArenaShell({ match, children }: { match: MatchVM; children: React.ReactNode }) {
   return (
-    <motion.div className="min-h-screen bg-bg-base" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-6">
+    <motion.div className="min-h-screen relative" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <LastKnightBg />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-4 pt-20">
         <h1 className="font-display text-ivory text-xl font-bold mb-4">{matchLabel(match)}</h1>
         {children}
       </div>
