@@ -4,7 +4,7 @@
 // Shares the leakey backdrop + card language with /games.
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useParams, Navigate, Link } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import { useTournamentStore } from '../store/tournamentStore';
 import { useGameStore } from '../store/gameStore';
 import { useMarketStore } from '../store/marketStore';
@@ -189,21 +189,17 @@ function CompletedArena({ match, agentA, agentB }: {
 
 // ── Sub-components ────────────────────────────────────────────────────────
 const STAGE_LONG: Record<MatchVM['stage'], string> = {
-  quarter: 'Quarterfinal', semi: 'Semifinal', final: 'Championship Final',
+  quarter: 'Quarterfinal', semi: 'Semifinal', final: 'Final',
 };
-/** Clean single-line arena title, leakey-style — never the cup-name/TC blob. */
+/** Stage name only — no match index ("Quarterfinal", not "Quarterfinal 3"). */
 function matchLabel(m: MatchVM): string {
-  if (m.code === 'LIVE') return 'Exhibition match';
-  return m.stage === 'final' ? 'Championship Final' : `${STAGE_LONG[m.stage]} ${m.matchIndex + 1}`;
+  return m.code === 'LIVE' ? 'Exhibition match' : STAGE_LONG[m.stage];
 }
 
 function ArenaShell({ match, children }: { match: MatchVM; children: React.ReactNode }) {
   return (
     <motion.div className="min-h-screen bg-bg-base" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-6">
-        <Link to="/games" className="inline-flex items-center gap-1.5 text-muted hover:text-gold text-sm mb-4 transition-colors">
-          ← All games
-        </Link>
         <h1 className="font-display text-ivory text-xl font-bold mb-4">{matchLabel(match)}</h1>
         {children}
       </div>
