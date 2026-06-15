@@ -119,6 +119,9 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
                 },
               };
             });
+            // Payout (or refund) landed in spendable balance server-side — reflect it
+            // in the navbar/wallet immediately instead of waiting for the next poll.
+            void useAuthStore.getState().refreshBalance();
           })();
           return;
         }

@@ -14,7 +14,6 @@ import { useServerTaunt } from '../hooks/useServerTaunt';
 import { ChessBoard } from '../components/chess/ChessBoard';
 import { AgentCard } from '../components/chess/AgentCard';
 import { MarketPanel } from '../components/market/MarketPanel';
-import { SettlementBanner } from '../components/market/SettlementBanner';
 import { Countdown } from '../components/tournament/Countdown';
 import { LastKnightBg } from '../components/layout/LastKnightBg';
 
@@ -45,12 +44,11 @@ export function ExhibitionPage() {
     <motion.div className="min-h-screen relative" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <LastKnightBg />
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-6">
-        <SettlementBanner />
         {idle ? (
           <Intermission />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-3">
               <AgentCard agent={black!} isActive={turn === 'b' && !isFinished}
                          capturedPieces={captured.byBlack} capturedIsWhite clockMs={clocks.black}
                          taunt={taunt?.seat === 'black' ? taunt.text : null} />
