@@ -1,6 +1,8 @@
-// Backend endpoints. Defaults to the live funnel; override per-deploy with
-// VITE_API_URL / VITE_WS_URL (api.juzz.bet once the domain is cut over).
-const DEFAULT_API = 'https://sofiav2.tail4f6cc6.ts.net';
+// Backend endpoints. Public production API via the Cloudflare tunnel
+// (api.juzz.bet) — resolves to a public IP for every visitor, so no browser
+// Local-Network-Access prompt (the Tailscale *.ts.net funnel triggered it).
+// Override per-deploy with VITE_API_URL / VITE_WS_URL if needed.
+const DEFAULT_API = 'https://api.juzz.bet';
 
 export const API_URL: string =
   import.meta.env.VITE_API_URL?.replace(/\/$/, '') || DEFAULT_API;
