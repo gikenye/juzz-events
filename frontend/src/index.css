@@ -47,24 +47,24 @@ html, body, #root {
   .react-chessboard-board span { font-size: 7px !important; }
 }
 
-/* Gold glow border around chess board */
+/* Fire glow border around chess board */
 @keyframes board-fire-pulse {
   0%, 100% {
     box-shadow:
-      0 0 0 2px #6E5410,
-      0 0 10px 2px rgba(201, 162, 39, 0.40),
-      0 0 24px 4px rgba(201, 162, 39, 0.20);
+      0 0 0 2px #7A2800,
+      0 0 10px 2px rgba(255, 80, 0, 0.40),
+      0 0 24px 4px rgba(255, 50, 0, 0.20);
   }
   50% {
     box-shadow:
-      0 0 0 2px #8A6E1A,
-      0 0 14px 3px rgba(226, 197, 71, 0.55),
-      0 0 36px 6px rgba(201, 162, 39, 0.28);
+      0 0 0 2px #A03200,
+      0 0 14px 3px rgba(255, 100, 0, 0.55),
+      0 0 36px 6px rgba(255, 60, 0, 0.28);
   }
 }
 
 .chess-board-frame {
-  border: 2px solid rgba(201, 162, 39, 0.6);
+  border: 2px solid rgba(180, 60, 0, 0.6);
   border-radius: 3px;
   animation: board-fire-pulse 2.4s ease-in-out infinite;
 }

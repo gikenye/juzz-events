@@ -136,27 +136,32 @@ function LiveArena({ match, agentA, agentB, countdownTarget }: {
   // Live trash talk — server-authored, broadcast to every viewer.
   const taunt = useServerTaunt(gameId);
 
+  // Live match goes straight to the board (no title) like leakey — the board is
+  // the hero, full size on the inferno, not tucked under a header.
   return (
-    <ArenaShell match={match}>
-      <SettlementBanner />
-      {winner && <WinnerBanner name={winner.name} detail={result ? RESULT_TEXT[result] : undefined} />}
-      {countdownTarget > 0 && <CountdownBanner target={countdownTarget} />}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-        <div className="flex flex-col gap-3">
-          <AgentCard agent={blackAgent} isActive={turn === 'b' && !isFinished}
-                     capturedPieces={captured.byBlack} capturedIsWhite clockMs={clocks.black}
-                     taunt={taunt?.seat === 'black' ? taunt.text : null} />
-          <ChessBoard />
-          <AgentCard agent={whiteAgent} isActive={turn === 'w' && !isFinished}
-                     capturedPieces={captured.byWhite} clockMs={clocks.white}
-                     taunt={taunt?.seat === 'white' ? taunt.text : null} />
-          <OnChainBadge gameId={gameId} />
-        </div>
-        <div className="lg:sticky lg:top-20 lg:self-start">
-          <MarketPanel />
+    <motion.div className="min-h-screen relative" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <LastKnightBg />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-3 pt-20">
+        <SettlementBanner />
+        {winner && <WinnerBanner name={winner.name} detail={result ? RESULT_TEXT[result] : undefined} />}
+        {countdownTarget > 0 && <CountdownBanner target={countdownTarget} />}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+          <div className="flex flex-col gap-3">
+            <AgentCard agent={blackAgent} isActive={turn === 'b' && !isFinished}
+                       capturedPieces={captured.byBlack} capturedIsWhite clockMs={clocks.black}
+                       taunt={taunt?.seat === 'black' ? taunt.text : null} />
+            <ChessBoard />
+            <AgentCard agent={whiteAgent} isActive={turn === 'w' && !isFinished}
+                       capturedPieces={captured.byWhite} clockMs={clocks.white}
+                       taunt={taunt?.seat === 'white' ? taunt.text : null} />
+            <OnChainBadge gameId={gameId} />
+          </div>
+          <div className="lg:sticky lg:top-20 lg:self-start">
+            <MarketPanel />
+          </div>
         </div>
       </div>
-    </ArenaShell>
+    </motion.div>
   );
 }
 
