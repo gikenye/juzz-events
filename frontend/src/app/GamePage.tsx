@@ -1,7 +1,7 @@
 // One match's arena: live board + market when it plays, replayed final
 // position when done, feeder view while TBD. Everything is server truth —
 // the match identity is a bracket position (stable across draw rematches).
-// Shares the leakey backdrop + card language with /games.
+// Shares the arena backdrop + card language with /games.
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useParams, Navigate, Link } from 'react-router-dom';
@@ -21,7 +21,6 @@ import { ChessBoard } from '../components/chess/ChessBoard';
 import { AgentCard } from '../components/chess/AgentCard';
 import { MarketPanel } from '../components/market/MarketPanel';
 import { Countdown } from '../components/tournament/Countdown';
-import { moveLogEventsUrl, moveLogGameId } from '../lib/config';
 import { LastKnightBg } from '../components/layout/LastKnightBg';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -91,22 +90,16 @@ export function GamePage() {
     return <CompletedArena match={match} agentA={agentA} agentB={agentB} />;
   }
 
-  // ── Upcoming match with known participants: show the matchup only. This match's
-  // market opens when it goes live — do NOT surface the cup-winner futures here
-  // (it reads as if it were this match's market). Futures live on /games.
+  // ── Upcoming match with known participants — countdown to the start
+  // + the matchup board. (No pre-match odds panel: there is no market until the
+  // match goes live, so any number here would be fabricated.)
   return (
     <ArenaShell match={match}>
+      {match.isCurrent && vm.startsAtMs > 0 && <CountdownBanner target={vm.startsAtMs + offset} />}
       <div className="flex flex-col gap-3 max-w-[460px] mx-auto">
         <AgentCard agent={agentB} isActive={false} />
         <ChessBoard fen={START_FEN} />
         <AgentCard agent={agentA} isActive={false} />
-      </div>
-      <div className="max-w-[460px] mx-auto mt-4">
-        <Link to="/game"
-          className="flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors"
-          style={{ background: 'rgba(255,60,0,0.10)', border: '1px solid rgba(255,60,0,0.35)', color: '#FFBE00' }}>
-          Betting opens when this match goes live · Watch the live match →
-        </Link>
       </div>
     </ArenaShell>
   );
@@ -134,7 +127,7 @@ function LiveArena({ match, agentA, agentB, countdownTarget }: {
   // Live trash talk — server-authored, broadcast to every viewer.
   const taunt = useServerTaunt(gameId);
 
-  // Live match goes straight to the board (no title) like leakey — the board is
+  // Live match goes straight to the board (no title) — the board is
   // the hero, full size on the inferno, not tucked under a header.
   return (
     <motion.div className="min-h-screen relative" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -151,7 +144,6 @@ function LiveArena({ match, agentA, agentB, countdownTarget }: {
             <AgentCard agent={whiteAgent} isActive={turn === 'w' && !isFinished}
                        capturedPieces={captured.byWhite} clockMs={clocks.white}
                        taunt={taunt?.seat === 'white' ? taunt.text : null} />
-            <OnChainBadge gameId={gameId} />
           </div>
           <div className="lg:sticky lg:top-20 lg:self-start">
             <MarketPanel />
@@ -184,7 +176,6 @@ function CompletedArena({ match, agentA, agentB }: {
         <AgentCard agent={agentB} isActive={false} capturedPieces={caps.byBlack} capturedIsWhite />
         <ChessBoard fen={finalFen ?? START_FEN} />
         <AgentCard agent={agentA} isActive={false} capturedPieces={caps.byWhite} />
-        <OnChainBadge gameId={match.gameId} />
       </div>
     </ArenaShell>
   );
@@ -192,11 +183,13 @@ function CompletedArena({ match, agentA, agentB }: {
 
 // ── Sub-components ────────────────────────────────────────────────────────
 const STAGE_LONG: Record<MatchVM['stage'], string> = {
-  quarter: 'Quarterfinal', semi: 'Semifinal', final: 'Final',
+  quarter: 'Quarter final', semi: 'Semi final', final: 'Final',
 };
-/** Stage name only — no match index ("Quarterfinal", not "Quarterfinal 3"). */
+/** Arena title: "Quarter final - Match A" — same label the /games card uses. */
 function matchLabel(m: MatchVM): string {
-  return m.code === 'LIVE' ? 'Exhibition match' : STAGE_LONG[m.stage];
+  if (m.code === 'LIVE') return 'Exhibition match';
+  if (m.stage === 'final') return 'Final';
+  return `${STAGE_LONG[m.stage]} - Match ${String.fromCharCode(65 + m.matchIndex)}`;
 }
 
 function ArenaShell({ match, children }: { match: MatchVM; children: React.ReactNode }) {
@@ -204,6 +197,9 @@ function ArenaShell({ match, children }: { match: MatchVM; children: React.React
     <motion.div className="min-h-screen relative" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <LastKnightBg />
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-4 pt-20">
+        <Link to="/games" className="inline-flex items-center gap-1.5 text-muted hover:text-gold text-sm mb-4 transition-colors">
+          ← All games
+        </Link>
         <h1 className="font-display text-ivory text-xl font-bold mb-4">{matchLabel(match)}</h1>
         {children}
       </div>
@@ -211,29 +207,11 @@ function ArenaShell({ match, children }: { match: MatchVM; children: React.React
   );
 }
 
-/** Quiet line under the board: every move is committed on-chain (MoveLog), so
- *  anyone can verify the outcome wasn't faked. Links the live contract log. */
-function OnChainBadge({ gameId }: { gameId?: string | null }) {
-  return (
-    <a
-      href={moveLogEventsUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      title={gameId ? `On-chain game id: ${moveLogGameId(gameId)}` : 'Moves attested on Celo'}
-      className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-muted hover:text-gold transition-colors"
-    >
-      <span aria-hidden>⛓</span>
-      Every move verified on-chain
-      <span aria-hidden style={{ opacity: 0.6 }}>↗</span>
-    </a>
-  );
-}
-
 function CountdownBanner({ target }: { target: number }) {
   return (
-    <div className="mb-4 text-center py-4 rounded-xl border border-gold/40 bg-gold/5">
-      <div className="text-muted text-xs uppercase tracking-widest mb-1">Game starts in</div>
-      <Countdown target={target} className="font-display text-gold text-3xl font-bold tabular-nums" />
+    <div className="mb-4 flex items-center justify-center gap-2 py-2 lg:py-1.5 rounded-xl border border-gold/40 bg-gold/5">
+      <span className="text-muted text-xs uppercase tracking-widest">Game starts in</span>
+      <Countdown target={target} className="font-display text-gold text-2xl lg:text-lg font-bold tabular-nums" />
     </div>
   );
 }
@@ -241,11 +219,24 @@ function CountdownBanner({ target }: { target: number }) {
 function WinnerBanner({ name, detail }: { name: string; detail?: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mb-4 text-center py-3 rounded-xl border border-gold/50 bg-gold/10 text-gold font-display font-semibold tracking-wider"
+      initial={{ opacity: 0, scale: 0.92, y: -12 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+      className="mb-4 text-center py-3.5 rounded-xl border font-display font-semibold tracking-wider relative overflow-hidden"
+      style={{
+        borderColor: 'rgba(201,162,39,0.5)',
+        background: 'linear-gradient(135deg, rgba(201,162,39,0.12) 0%, rgba(201,162,39,0.06) 100%)',
+        boxShadow: '0 0 40px rgba(201,162,39,0.18), 0 2px 16px rgba(0,0,0,0.4)',
+        color: '#E2C547',
+      }}
     >
-      🏆 {name} wins {detail ?? ''}
+      {/* Shimmer line */}
+      <div
+        className="absolute inset-x-0 top-0 h-[1px]"
+        style={{ background: 'linear-gradient(90deg, transparent 0%, #E2C547 35%, #fff8 50%, #E2C547 65%, transparent 100%)' }}
+      />
+      <span className="text-lg mr-2">♛</span>
+      {name} wins {detail ?? ''}
     </motion.div>
   );
 }

@@ -2,7 +2,7 @@ import { getAgent, fallbackAgent } from '../../lib/agents';
 import type { CupVM } from '../../lib/tournamentView';
 import { AgentAvatar } from '../chess/AgentAvatar';
 
-const STAGE_LABEL = { quarter: 'Quarterfinals', semi: 'Semifinals', final: 'The Final' } as const;
+const STAGE_LABEL = { quarter: 'QUARTER FINALS', semi: 'SEMI FINALS', final: 'FINAL' } as const;
 
 /** Four tiny chess squares — like a corner fragment of a board. */
 function ChessFragment() {
@@ -37,15 +37,18 @@ export function BracketHeader({ vm }: { vm: CupVM }) {
   const stage = vm.matches.find(m => m.isCurrent)?.stage
     ?? vm.matches.find(m => m.phase !== 'completed')?.stage ?? 'quarter';
 
+  const played = vm.matches.filter(m => m.phase === 'completed').length;
+  const total = vm.matches.length || 7;
+
   return (
     <div
       className="rounded-xl border p-4 sm:p-5 flex items-center justify-between gap-4 flex-wrap"
       style={{
-        background: 'rgba(10,4,4,0.45)',
-        borderColor: 'rgba(255,255,255,0.08)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        boxShadow: '0 2px 24px rgba(0,0,0,0.35)',
+        background: 'rgba(10,4,4,0.50)',
+        borderColor: 'rgba(255,255,255,0.09)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
+        boxShadow: '0 2px 32px rgba(0,0,0,0.45)',
       }}
     >
       {/* Left: chess motif + title */}
@@ -53,22 +56,22 @@ export function BracketHeader({ vm }: { vm: CupVM }) {
         <ChessFragment />
         <div>
           <div
-            className="text-[10px] font-bold uppercase tracking-[0.22em] mb-0.5"
+            className="text-[10px] font-bold tracking-[0.22em] mb-0.5"
             style={{ color: '#C9A227' }}
           >
-            {vm.name || 'Live Tournament'}
+            LIVE TOURNAMENT
           </div>
           <h1
-            className="font-display text-ivory font-bold leading-tight"
+            className="font-sans text-ivory font-bold leading-tight"
             style={{ fontSize: 'clamp(1.1rem, 4vw, 1.6rem)' }}
           >
-            {isChampion ? 'Champion Crowned' : STAGE_LABEL[stage]}
+            {isChampion ? 'Champion crowned' : STAGE_LABEL[stage]}
           </h1>
         </div>
       </div>
 
-      {/* Right: champion badge only */}
-      {champ && (
+      {/* Right: champion badge or match progress */}
+      {champ ? (
         <div
           className="flex items-center gap-3 rounded-lg border px-3 py-2"
           style={{ borderColor: 'rgba(201,162,39,0.35)', background: 'rgba(201,162,39,0.07)' }}
@@ -82,6 +85,10 @@ export function BracketHeader({ vm }: { vm: CupVM }) {
               {champ.name}
             </div>
           </div>
+        </div>
+      ) : (
+        <div className="text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: '#9A9AAF' }}>
+          {played} / {total} played
         </div>
       )}
     </div>

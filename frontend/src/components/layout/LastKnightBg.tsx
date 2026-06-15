@@ -1,6 +1,6 @@
-// Leakey's "Last Knight" inferno — the live arena background: a deep-dark floor
-// with animated flame tongues + rising embers + fire glow. Pure CSS, copied 1:1
-// from leakey's feat/add-tournament-structure arena so the surfaces match exactly.
+// "Last Knight" inferno — the live arena background: a deep-dark floor
+// with animated flame tongues + rising embers + fire glow. Pure CSS so the
+// arena surfaces stay consistent across pages.
 
 const INFERNO_FLAMES = Array.from({ length: 8 }, (_, i) => ({
   left: `${(i * 12.5 + 2) % 100}%`,

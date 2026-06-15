@@ -1,5 +1,8 @@
-// Backend endpoints. Defaults to the live funnel; override per-deploy with
-// VITE_API_URL / VITE_WS_URL (api.juzz.bet once the domain is cut over).
+// Backend endpoints. Default = the public Tailscale funnel (the live backend).
+// Production overrides this with VITE_API_URL, but preview/branch deploys don't
+// receive that env var, so the default MUST point at a reachable backend —
+// api.juzz.bet is not routed (tunnel needs Cloudflare DNS), so it can't be the
+// default or every preview renders empty. Override per-deploy with VITE_API_URL.
 const DEFAULT_API = 'https://sofiav2.tail4f6cc6.ts.net';
 
 export const API_URL: string =

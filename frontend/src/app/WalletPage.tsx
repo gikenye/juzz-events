@@ -106,7 +106,7 @@ function AccountHome() {
 
   return (
     <div className="rounded-2xl border overflow-hidden bg-bg-card" style={{ borderColor: 'rgba(0,180,166,0.30)' }}>
-      {/* Hero — identity + the number that matters (leakey gotham card) */}
+      {/* Hero — identity + the number that matters (gotham card) */}
       <div className="p-6 pb-5" style={{ background: 'linear-gradient(135deg, #00B4A615 0%, #141418 60%)' }}>
         <div className="flex items-center justify-between mb-5">
           <span className="text-muted text-sm truncate">{user?.email ?? 'MiniPay'}</span>

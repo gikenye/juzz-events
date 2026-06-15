@@ -133,7 +133,7 @@ export function formatCountdown(ms: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-// ── Pre-league adapters: render leakey's bracket page on whatever exists ──
+// ── Pre-league adapters: render the bracket page on whatever exists ──
 
 /** The live exhibition game as a featured MatchVM (a = white seat). */
 export function exhibitionMatchVM(

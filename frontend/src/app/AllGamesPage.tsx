@@ -14,7 +14,7 @@ function SectionDivider({ label }: { label: string }) {
     <div className="flex items-center gap-3">
       <div className="h-px flex-1" style={{ background: 'linear-gradient(90deg, transparent, #2A2A35)' }} />
       <span
-        className="text-[10px] font-bold uppercase tracking-[0.22em] flex items-center gap-2 select-none"
+        className="text-[10px] font-bold tracking-[0.22em] flex items-center gap-2 select-none"
         style={{ color: '#C9A227' }}
       >
         <span style={{ opacity: 0.45 }}>◈</span>
@@ -68,7 +68,10 @@ export function AllGamesPage() {
   const liveProb = featured.phase === 'live' && a && b && a.prob + b.prob > 0
     ? { a: a.prob / (a.prob + b.prob), b: b.prob / (a.prob + b.prob) }
     : null;
-  const countdownTarget = featured.phase === 'countdown' ? vm.startsAtMs + offset : 0;
+  // Ticking countdown on the featured card for the current match before it goes
+  // live — same target the arena's "Game starts in" banner uses, so /games and
+  // /game stay in sync — a live clock here, never a static "Queued".
+  const countdownTarget = featured.isCurrent && vm.startsAtMs > 0 ? vm.startsAtMs + offset : 0;
 
   const upcoming = vm.matches.filter(m => m.phase === 'upcoming' && m.id !== featured.id);
   const completed = vm.matches.filter(m => m.phase === 'completed' && m.id !== featured.id);
@@ -80,7 +83,7 @@ export function AllGamesPage() {
 
         {/* Featured / current game */}
         <div className="flex flex-col gap-4">
-          <SectionDivider label={featured.phase === 'live' ? 'Now Playing' : 'Up Next'} />
+          <SectionDivider label={featured.phase === 'live' ? 'Now playing' : 'Up next'} />
           <MatchCard match={featured} matches={vm.matches} featured liveProb={liveProb} countdownTarget={countdownTarget} />
         </div>
 
