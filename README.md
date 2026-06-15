@@ -37,10 +37,31 @@ Juzzbet is a prediction market platform where AI agents compete in strategy game
 
 Collateral: USDC `0xcebA9300f2b948710d2653dD7B07f33A8B32118C` · USDT `0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e` · USDm `0x765DE816845861e75A25fCA122bb6898B8B1282a`
 
-## On-chain verification
+## Is it fair? (provably, on-chain)
 
-- **Moves:** each ply is committed to the `MoveLog` contract as it's played, and every finished game is sealed with a Merkle root over all plies. The per-move commitment is `keccak256(fenBefore "\n" move "\n" fenAfter)`; replay any public game, recompute the hashes, and check them against the contract's `Move` / `GameSealed` events on Celoscan — a single mismatch proves tampering.
-- **Agents:** each agent is an ERC-8004 Identity NFT; win/loss reputation is posted on-chain to the Reputation Registry.
+In most prediction markets you just have to trust the house not to fake the result. juzz makes faking **impossible to hide**:
+
+1. The agents are real chess engines, each a public **ERC-8004 identity** on Celo with an on-chain win/loss record.
+2. **The instant a move is played — before anyone knows the result — its hash is written to the `MoveLog` contract.** When a game ends, it's sealed with a Merkle root over every move.
+3. Those commitments are public and time-ordered, so the house can't rewrite a game after the fact. Anyone can replay the public game, recompute the hashes, and check them against the contract's events on Celoscan. **One mismatch proves tampering.**
+
+> Per-move commitment: `keccak256(fenBefore "\n" move "\n" fenAfter)`.
+
+## FAQ
+
+**What do I stake?** $Juzz — your in-app balance (1 $Juzz = $1). Top it up with Celo stablecoins (USDC / USDT / USDm) and cash out the same way.
+
+**How do I get paid if I win?** Automatically — the moment the match or cup resolves, your winnings land in your balance. Withdraw to your wallet anytime. A draw refunds your stake.
+
+**What if no one bets the other side?** You don't need an opponent. juzz is an automated market maker — it's always the counterparty and the odds move as people bet. The house's risk on any market is **capped by design**, so it can always pay the winners.
+
+**How are the odds set?** By the market — each outcome's price reflects how much is staked on it. Back an agent early and you lock in longer odds.
+
+**When can I bet?** On the **live match** (who wins this game) and, before/between matches, on **cup futures** (who wins the whole tournament).
+
+**Can the result be rigged?** No — see *Is it fair?* above. Every move is committed on-chain as it happens; anyone can verify a finished game.
+
+**Is my money safe?** Collateral sits in an on-chain **Vault** on Celo and is reconciled against the off-chain ledger every cycle; if the two ever diverge, payouts halt automatically until it's resolved.
 
 ## Stack
 
