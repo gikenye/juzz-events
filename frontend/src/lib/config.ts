@@ -1,7 +1,3 @@
-// Backend endpoints. Default = api.juzz.bet — the live backend, served by Caddy
-// (auto-HTTPS) on the OVH host with a direct Namecheap A-record. Reachable for
-// production AND preview/branch deploys, so it's a safe default; production may
-// still override with VITE_API_URL. Caddy proxies the /ws upgrade over HTTP/1.1.
 const DEFAULT_API = 'https://api.juzz.bet';
 
 export const API_URL: string =
