@@ -23,7 +23,6 @@ import { MarketPanel } from '../components/market/MarketPanel';
 import { Countdown } from '../components/tournament/Countdown';
 import { moveLogEventsUrl, moveLogGameId } from '../lib/config';
 import { LastKnightBg } from '../components/layout/LastKnightBg';
-import { CupFutures } from '../components/market/CupFutures';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -92,8 +91,9 @@ export function GamePage() {
     return <CompletedArena match={match} agentA={agentA} agentB={agentB} />;
   }
 
-  // ── Upcoming with known participants: show the matchup + real cup futures
-  // (pre-bet the tournament winner) instead of dummy pre-match odds.
+  // ── Upcoming match with known participants: show the matchup only. This match's
+  // market opens when it goes live — do NOT surface the cup-winner futures here
+  // (it reads as if it were this match's market). Futures live on /games.
   return (
     <ArenaShell match={match}>
       <div className="flex flex-col gap-3 max-w-[460px] mx-auto">
@@ -101,10 +101,11 @@ export function GamePage() {
         <ChessBoard fen={START_FEN} />
         <AgentCard agent={agentA} isActive={false} />
       </div>
-      <div className="max-w-[460px] mx-auto mt-4 flex flex-col gap-3">
-        <CupFutures />
-        <Link to="/game" className="text-center text-xs text-muted hover:text-gold transition-colors">
-          This match starts soon — watch the live one →
+      <div className="max-w-[460px] mx-auto mt-4">
+        <Link to="/game"
+          className="flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors"
+          style={{ background: 'rgba(255,60,0,0.10)', border: '1px solid rgba(255,60,0,0.35)', color: '#FFBE00' }}>
+          Betting opens when this match goes live · Watch the live match →
         </Link>
       </div>
     </ArenaShell>
