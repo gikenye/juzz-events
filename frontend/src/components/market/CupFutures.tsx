@@ -1,29 +1,32 @@
 // Pre-bet the cup: stake on who wins the whole tournament before/while matches
-// play. These are real LMSR "Will Agent X win the cup?" markets from /league —
-// a YES buy is a server trade; payout lands via the global settlement banner.
+// play. Real LMSR "Will Agent X win the cup?" markets from /league, placed via
+// socket.trade — and it reuses the arena BetForm so amount inputs, error handling
+// and the deposit flow are identical to the live arena bet slip.
 import { useEffect, useState } from 'react';
 import { useTournamentStore } from '../../store/tournamentStore';
 import { useAuthStore } from '../../store/authStore';
 import { getAgent, fallbackAgent } from '../../lib/agents';
-import { impliedOdds, potentialPayout } from '../../lib/odds';
+import { impliedOdds } from '../../lib/odds';
 import { socket } from '../../lib/ws';
 import { AgentAvatar } from '../chess/AgentAvatar';
+import { BetForm } from './BetForm';
 
-const AMOUNTS = [1, 5, 10, 25];
 const short = (n: string) => n.replace(/^Agent\s+/i, '');
 
 export function CupFutures() {
   const futures = useTournamentStore(s => s.league?.futures) ?? [];
   const { balance, tradingToken } = useAuthStore();
   const [picked, setPicked] = useState<string | null>(null); // market_id
-  const [stake, setStake] = useState('5');
-  const [phase, setPhase] = useState<'idle' | 'pending' | 'placed'>('idle');
+  const [stake, setStake] = useState('1.00');
+  const [pending, setPending] = useState(false);
+  const [placedName, setPlacedName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const offOk = socket.on('trade_confirmed', () => setPhase(p => (p === 'pending' ? 'placed' : p)));
+    const offOk = socket.on('trade_confirmed', () =>
+      setPending(p => { if (p) { setPlacedName(n => n); } return false; }));
     const offErr = socket.on('error', (e: { message?: string }) =>
-      setPhase(p => { if (p === 'pending') { setError(e?.message ?? 'Bet failed'); return 'idle'; } return p; }));
+      setPending(p => { if (p) setError(e?.message ?? 'Bet failed'); return false; }));
     return () => { offOk?.(); offErr?.(); };
   }, []);
 
@@ -33,20 +36,18 @@ export function CupFutures() {
     .map(f => ({ ...f, agent: getAgent(f.agent_id) ?? fallbackAgent(f.agent_id) }))
     .sort((a, b) => b.market.yes_price - a.market.yes_price);
   const sel = rows.find(r => r.market.market_id === picked) ?? null;
+  const view = sel ? { label: short(sel.agent.name), prob: sel.market.yes_price } : null;
 
   const place = () => {
-    setError(null);
-    if (!sel) { setError('Pick an agent first.'); return; }
-    if (!tradingToken) { setError('Add funds to place a bet.'); return; }
+    if (!sel) return;
     const amt = parseFloat(stake);
     if (!amt || amt <= 0) { setError('Enter a stake.'); return; }
-    if (amt > balance) { setError('Insufficient balance.'); return; }
     const shares = +(amt / Math.max(sel.market.yes_price, 0.02)).toFixed(2);
-    setPhase('pending');
+    setError(null);
+    setPlacedName(short(sel.agent.name));
+    setPending(true);
     socket.trade('buy', sel.market.market_id, shares, 'yes');
   };
-
-  const win = sel ? potentialPayout(parseFloat(stake) || 0, impliedOdds(sel.market.yes_price)) : 0;
 
   return (
     <div className="flex flex-col gap-0 relative" style={{
@@ -62,11 +63,11 @@ export function CupFutures() {
           <p className="text-muted text-[11px] mt-1">Pre-bet the cup winner — pays out when the final ends.</p>
         </div>
 
-        {phase === 'placed' ? (
+        {placedName && !pending && !error ? (
           <div className="text-center py-3">
-            <div className="text-gold font-display font-semibold">Bet placed ♛</div>
-            <p className="text-muted text-xs mt-1">You're in on {short(sel?.agent.name ?? '')} to win the cup. Track it in your wallet.</p>
-            <button onClick={() => { setPhase('idle'); setPicked(null); }} className="mt-3 text-xs text-gold hover:underline">Place another →</button>
+            <div className="font-display font-semibold" style={{ color: '#FFBE00' }}>Bet placed ♛</div>
+            <p className="text-muted text-xs mt-1">You're in on {placedName} to win the cup. Track it in your wallet.</p>
+            <button onClick={() => { setPlacedName(null); setPicked(null); }} className="mt-3 text-xs hover:underline" style={{ color: '#FFBE00' }}>Place another →</button>
           </div>
         ) : (
           <>
@@ -74,7 +75,7 @@ export function CupFutures() {
               {rows.map(r => {
                 const on = r.market.market_id === picked;
                 return (
-                  <button key={r.market.market_id} onClick={() => setPicked(r.market.market_id)}
+                  <button key={r.market.market_id} onClick={() => { setPicked(r.market.market_id); setError(null); }}
                     className="flex items-center gap-2 rounded-lg px-2.5 py-2 transition-all text-left"
                     style={{
                       background: on ? 'rgba(255,60,0,0.12)' : 'rgba(255,255,255,0.03)',
@@ -90,27 +91,18 @@ export function CupFutures() {
               })}
             </div>
 
-            <div className="flex gap-2">
-              {AMOUNTS.map(a => (
-                <button key={a} onClick={() => setStake(String(a))}
-                  className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                  style={{
-                    background: stake === String(a) ? 'rgba(255,60,0,0.14)' : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${stake === String(a) ? 'rgba(255,120,0,0.5)' : 'rgba(255,255,255,0.08)'}`,
-                    color: stake === String(a) ? '#FFBE00' : '#C8B48A',
-                  }}>${a}</button>
-              ))}
-            </div>
-
-            {error && <p className="text-red-400 text-xs">{error}</p>}
-
-            <button onClick={place} disabled={!sel || phase === 'pending'}
-              className="py-3 rounded-lg font-display font-semibold uppercase tracking-wider text-sm transition-all disabled:opacity-50"
-              style={{ background: sel ? 'linear-gradient(135deg, #9B1C1C, #FF6A00)' : 'rgba(80,60,28,0.5)', color: sel ? '#0C0805' : '#A08B6A' }}>
-              {phase === 'pending' ? 'Placing…'
-                : sel ? `Bet $${stake || 0} on ${short(sel.agent.name)} · win $${win.toFixed(2)}`
-                : 'Pick an agent'}
-            </button>
+            <BetForm
+              balance={balance}
+              tradingToken={tradingToken}
+              stake={stake}
+              setStake={setStake}
+              view={view}
+              error={error}
+              pending={pending}
+              onPlace={place}
+              pickHint="— pick an agent above"
+              placeLabel="Back to win the cup"
+            />
           </>
         )}
       </div>
