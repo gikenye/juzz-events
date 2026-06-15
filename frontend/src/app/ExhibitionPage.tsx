@@ -45,7 +45,7 @@ export function ExhibitionPage() {
   // straight to the countdown intermission the moment it's over.
   const idle = waiting || !white || !black || isFinished;
   // Pre-match window: the game + agents are known but play hasn't begun. Show the
-  // real countdown (leakey's clock) over the board instead of clocks that read "not
+  // real countdown over the board instead of clocks that read "not
   // started" — the confusing gap before the first move.
   const countdownTarget = startsAtMs > 0 ? startsAtMs + offset : 0;
   const preMatch = !idle && countdownTarget > now;
@@ -78,7 +78,7 @@ export function ExhibitionPage() {
   );
 }
 
-/** Pre-match countdown over the board — leakey's clock, real server target. */
+/** Pre-match countdown over the board — real server target. */
 function CountdownBanner({ target }: { target: number }) {
   return (
     <div className="text-center py-4 rounded-xl border border-gold/40 bg-gold/5">

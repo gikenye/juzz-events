@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 
 /**
- * The /games tournament backdrop — leakey's "Battle Eve" (chess pawns in red
+ * The /games tournament backdrop — "Battle Eve" (chess pawns in red
  * light, photo by Chris F, Pexels) under a warm-to-dark gradient. Used on the
  * cup bracket page only; the live arena and wallet sit on the flat bg-bg-base.
  */
