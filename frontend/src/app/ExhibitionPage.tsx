@@ -40,7 +40,10 @@ export function ExhibitionPage() {
   const turn = fen.split(' ')[1];
   const taunt = useServerTaunt(gameId);
 
-  const idle = waiting || !white || !black;
+  // A finished game must NOT linger as a frozen board (clocks at 0:00, no context)
+  // while we wait for the next one — that gap can be minutes between cups. Drop
+  // straight to the countdown intermission the moment it's over.
+  const idle = waiting || !white || !black || isFinished;
   // Pre-match window: the game + agents are known but play hasn't begun. Show the
   // real countdown (leakey's clock) over the board instead of clocks that read "not
   // started" — the confusing gap before the first move.

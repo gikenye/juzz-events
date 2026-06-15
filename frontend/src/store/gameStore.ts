@@ -100,6 +100,15 @@ export const useGameStore = create<GameState>((set, get) => ({
         });
       }));
       unsub.push(socket.on('event', (ev) => handleEvent(ev, set, get)));
+      // The game we were watching vanished (ended + reaped, or a stale id after a
+      // tournament rolled over). Drop it, stop the reconnect from re-subscribing,
+      // and rediscover — otherwise we stay frozen on a dead board forever.
+      unsub.push(socket.on('error', (err) => {
+        if (err.code !== 'GAME_NOT_FOUND') return;
+        socket.unsubscribeGame();
+        set({ gameId: null, waiting: true, isFinished: false, result: null, lastMove: null });
+        if (!pinned) socket.listGames();
+      }));
     }
     // Boot with the persisted trading token — a reload landing here must NOT
     // demote a signed-in user to spectator (stale $0 balance broke trading).
