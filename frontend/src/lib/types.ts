@@ -67,6 +67,10 @@ export interface MarketSummary {
   resolved: boolean;
   winning_outcome: boolean | null;
   liquidity_b: number;
+  // Present only in parimutuel mode ($ staked per side). When set, the market is
+  // pool-settled: a stake buys 1:1 and payout depends on the pool at close.
+  yes_pool?: number;
+  no_pool?: number;
   created_at_seq: number;
   resolved_at_seq: number | null;
 }

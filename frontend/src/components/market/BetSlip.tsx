@@ -27,6 +27,7 @@ export function BetSlip({ outcomes }: { outcomes: SlotView[] }) {
         pending={pending}
         isOpen={isMarketOpen}
         onPlace={placeBet}
+        projected={slots.find(s => s.key === selected)?.parimutuel ?? false}
       />
 
       {gamePositions.length > 0 && (

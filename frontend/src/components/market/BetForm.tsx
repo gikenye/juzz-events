@@ -19,12 +19,14 @@ export interface BetFormProps {
   onPlace: () => void;
   pickHint?: string;
   placeLabel?: string;
+  /** Parimutuel: payout is an estimate at current pool odds, not locked at bet time. */
+  projected?: boolean;
 }
 
 export function BetForm({
   balance, tradingToken, stake, setStake, view, error,
   pending = false, isOpen = true, onPlace,
-  pickHint = '— pick a side above', placeLabel = 'Lock in prediction',
+  pickHint = '— pick a side above', placeLabel = 'Lock in prediction', projected = false,
 }: BetFormProps) {
   const navigate = useNavigate();
   const amt = parseFloat(stake) || 0;
@@ -99,13 +101,16 @@ export function BetForm({
               <div style={{ fontFamily: "'Cinzel', serif", color: '#FFD0A0', fontSize: 13, fontWeight: 700 }}>×{impliedOdds(view.prob).toFixed(2)}</div>
             </div>
             <div className="text-right">
-              <div style={{ color: '#C07840', fontSize: 11 }}>To win</div>
+              <div style={{ color: '#C07840', fontSize: 11 }}>{projected ? 'Projected' : 'To win'}</div>
               <div style={{ fontFamily: "'Cinzel', serif", color: '#FFBE00', fontSize: 13, fontWeight: 700 }}>${payout.toFixed(2)}</div>
             </div>
           </div>
         )}
       </div>
 
+      {projected && view && (
+        <p style={{ color: '#C07840', fontSize: 10 }}>Payout depends on the pool at close.</p>
+      )}
       {error && <p style={{ color: '#FF4422', fontSize: 12 }}>{error}</p>}
 
       <button disabled={btnDisabled} onClick={handlePlace}
