@@ -10,7 +10,7 @@ import { useGameStore } from '../store/gameStore';
 import { useMarketStore } from '../store/marketStore';
 import { usePositionsStore } from '../store/positionsStore';
 import { api } from '../lib/api';
-import { getAgent, fallbackAgent, eloExpected } from '../lib/agents';
+import { getAgent, fallbackAgent } from '../lib/agents';
 import type { Agent } from '../types';
 import { buildCupVM, type MatchVM } from '../lib/tournamentView';
 import { capturedFromFen } from '../lib/chessFen';
@@ -20,10 +20,10 @@ import type { GameResult } from '../lib/types';
 import { ChessBoard } from '../components/chess/ChessBoard';
 import { AgentCard } from '../components/chess/AgentCard';
 import { MarketPanel } from '../components/market/MarketPanel';
-import { OddsDisplay, type SlotView } from '../components/market/OddsDisplay';
 import { Countdown } from '../components/tournament/Countdown';
 import { moveLogEventsUrl, moveLogGameId } from '../lib/config';
 import { LastKnightBg } from '../components/layout/LastKnightBg';
+import { CupFutures } from '../components/market/CupFutures';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -92,12 +92,8 @@ export function GamePage() {
     return <CompletedArena match={match} agentA={agentA} agentB={agentB} />;
   }
 
-  // ── Upcoming with known participants ──
-  const pa = eloExpected(agentA.elo, agentB.elo);
-  const preview: SlotView[] = [
-    { key: 'a', label: agentA.name.replace(/^Agent\s+/, ''), color: agentA.color, prob: pa, agent: agentA },
-    { key: 'b', label: agentB.name.replace(/^Agent\s+/, ''), color: agentB.color, prob: 1 - pa, agent: agentB },
-  ];
+  // ── Upcoming with known participants: show the matchup + real cup futures
+  // (pre-bet the tournament winner) instead of dummy pre-match odds.
   return (
     <ArenaShell match={match}>
       <div className="flex flex-col gap-3 max-w-[460px] mx-auto">
@@ -105,14 +101,10 @@ export function GamePage() {
         <ChessBoard fen={START_FEN} />
         <AgentCard agent={agentA} isActive={false} />
       </div>
-      <div className="max-w-[460px] mx-auto mt-4">
-        <p className="text-center text-muted text-xs uppercase tracking-widest mb-2">Pre-match win chance</p>
-        <OddsDisplay outcomes={preview} readOnly />
-        {/* Upcoming matches aren't bettable yet — point users to the open market. */}
-        <Link to="/game"
-          className="mt-4 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors"
-          style={{ background: 'rgba(255,60,0,0.10)', border: '1px solid rgba(255,60,0,0.35)', color: '#FFBE00' }}>
-          Betting opens when this match goes live · Watch the live match →
+      <div className="max-w-[460px] mx-auto mt-4 flex flex-col gap-3">
+        <CupFutures />
+        <Link to="/game" className="text-center text-xs text-muted hover:text-gold transition-colors">
+          This match starts soon — watch the live one →
         </Link>
       </div>
     </ArenaShell>

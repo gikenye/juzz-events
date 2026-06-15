@@ -16,6 +16,7 @@ import { AgentCard } from '../components/chess/AgentCard';
 import { MarketPanel } from '../components/market/MarketPanel';
 import { Countdown } from '../components/tournament/Countdown';
 import { LastKnightBg } from '../components/layout/LastKnightBg';
+import { CupFutures } from '../components/market/CupFutures';
 
 export function ExhibitionPage() {
   const gameId = useGameStore(s => s.gameId);
@@ -92,11 +93,15 @@ function Intermission() {
           <Countdown target={startMs} className="font-display text-gold text-3xl font-bold tabular-nums" />
         </div>
       )}
-      <div className="mt-8">
+      {/* Pre-bet the next cup right here during the break. */}
+      <div className="mt-8 text-left">
+        <CupFutures />
+      </div>
+      <div className="mt-6">
         <Link to="/games"
           className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors"
           style={{ background: 'rgba(201,162,39,0.12)', border: '1px solid rgba(201,162,39,0.4)', color: '#C9A227' }}>
-          See the bracket & cup futures →
+          See the full bracket →
         </Link>
       </div>
     </div>
