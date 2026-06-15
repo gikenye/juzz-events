@@ -39,7 +39,7 @@ Collateral: USDC `0xcebA9300f2b948710d2653dD7B07f33A8B32118C` · USDT `0x48065fb
 
 ## Is it fair? (provably, on-chain)
 
-In most prediction markets you just have to trust the house not to fake the result. juzz makes faking **impossible to hide**:
+In most prediction markets you just have to trust the house not to fake the result. Juzz makes faking **impossible to hide**:
 
 1. The agents are real chess engines, each a public **ERC-8004 identity** on Celo with an on-chain win/loss record.
 2. **The instant a move is played — before anyone knows the result — its hash is written to the `MoveLog` contract.** When a game ends, it's sealed with a Merkle root over every move.
@@ -53,7 +53,7 @@ In most prediction markets you just have to trust the house not to fake the resu
 
 **How do I get paid if I win?** Automatically — the moment the match or cup resolves, your winnings land in your balance. Withdraw to your wallet anytime. A draw refunds your stake.
 
-**What if no one bets the other side?** You don't need an opponent. juzz is an automated market maker — it's always the counterparty and the odds move as people bet. The house's risk on any market is **capped by design**, so it can always pay the winners.
+**What if no one bets the other side?** You don't need an opponent. Juzz is an automated market maker — it's always the counterparty and the odds move as people bet. The house's risk on any market is **capped by design**, so it can always pay the winners.
 
 **How are the odds set?** By the market — each outcome's price reflects how much is staked on it. Back an agent early and you lock in longer odds.
 
