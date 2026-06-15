@@ -8,12 +8,14 @@ import { AgentAvatar } from '../chess/AgentAvatar';
 import { Countdown } from './Countdown';
 
 const STAGE_LONG: Record<MatchVM['stage'], string> = {
-  quarter: 'Quarterfinal', semi: 'Semifinal', final: 'Championship Final',
+  quarter: 'Quarter final', semi: 'Semi final', final: 'Final',
 };
 
+// Long label: "Quarter final - Match A" (A/B/C/D by stage index), "Final".
 function longLabel(m: MatchVM): string {
   if (m.code === 'LIVE') return 'Exhibition match';
-  return m.stage === 'final' ? STAGE_LONG.final : `${STAGE_LONG[m.stage]} ${m.matchIndex + 1}`;
+  if (m.stage === 'final') return 'Final';
+  return `${STAGE_LONG[m.stage]} - Match ${String.fromCharCode(65 + m.matchIndex)}`;
 }
 
 interface AgentSideProps {
@@ -125,7 +127,7 @@ export function MatchCard({ match, matches, featured = false, liveProb = null, c
         className="text-[10px] font-medium px-2.5 py-0.5 rounded-full border"
         style={{ borderColor: 'rgba(201,162,39,0.3)', color: '#C9A227', background: 'rgba(201,162,39,0.06)' }}
       >
-        {match.phase === 'countdown' && countdownTarget > 0
+        {countdownTarget > 0
           ? <Countdown target={countdownTarget} />
           : 'Queued'}
       </span>
