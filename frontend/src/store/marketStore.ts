@@ -22,6 +22,7 @@ export interface OutcomeSlot {
   yesPrice: number;
   prob: number;             // yesPrice normalized over open slots
   resolved: boolean;
+  parimutuel: boolean;      // pool-settled: stake buys 1:1, payout depends on close
 }
 
 interface MarketState {
@@ -68,6 +69,7 @@ function slotsOf(markets: MarketSummary[]): { mode: 'match' | 'exhibition'; slot
         yesPrice: m.yes_price,
         prob: 0.5,
         resolved: m.resolved,
+        parimutuel: m.yes_pool != null,
       }];
     });
     if (slots.length === 2) {
@@ -80,11 +82,11 @@ function slotsOf(markets: MarketSummary[]): { mode: 'match' | 'exhibition'; slot
   const w = bySystem('white'), b = bySystem('black'), d = bySystem('draw');
   const slots: OutcomeSlot[] = [];
   if (w) slots.push({ key: 'a', marketId: w.market_id, agentId: white?.agent_id ?? null,
-                      label: white?.name ?? 'White', yesPrice: w.yes_price, prob: 0, resolved: w.resolved });
+                      label: white?.name ?? 'White', yesPrice: w.yes_price, prob: 0, resolved: w.resolved, parimutuel: w.yes_pool != null });
   if (b) slots.push({ key: 'b', marketId: b.market_id, agentId: black?.agent_id ?? null,
-                      label: black?.name ?? 'Black', yesPrice: b.yes_price, prob: 0, resolved: b.resolved });
+                      label: black?.name ?? 'Black', yesPrice: b.yes_price, prob: 0, resolved: b.resolved, parimutuel: b.yes_pool != null });
   if (d) slots.push({ key: 'draw', marketId: d.market_id, agentId: null,
-                      label: 'Draw', yesPrice: d.yes_price, prob: 0, resolved: d.resolved });
+                      label: 'Draw', yesPrice: d.yes_price, prob: 0, resolved: d.resolved, parimutuel: d.yes_pool != null });
   return { mode: 'exhibition', slots: normalize(slots) };
 }
 
@@ -180,8 +182,11 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     if (!auth.tradingToken) { set({ betError: 'Add funds to place a bet.' }); return; }
     if (stake > auth.balance) { set({ betError: 'Insufficient balance.' }); return; }
 
-    // $ stake → YES shares at the current price; the engine returns the exact cost.
-    const shares = +(stake / Math.max(slot.yesPrice, 0.02)).toFixed(2);
+    // Parimutuel: a $ stake buys 1:1 (shares == stake). LMSR: $ stake → YES shares
+    // at the current price. Either way the engine returns the exact cost.
+    const shares = slot.parimutuel
+      ? +stake.toFixed(2)
+      : +(stake / Math.max(slot.yesPrice, 0.02)).toFixed(2);
     if (shares <= 0) { set({ betError: 'Minimum bet is $0.01.' }); return; }
     set({ pending: true, betError: null });
     socket.trade('buy', slot.marketId, shares, 'yes');

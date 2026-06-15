@@ -42,7 +42,10 @@ export function CupFutures() {
     if (!sel) return;
     const amt = parseFloat(stake);
     if (!amt || amt <= 0) { setError('Enter a stake.'); return; }
-    const shares = +(amt / Math.max(sel.market.yes_price, 0.02)).toFixed(2);
+    // Parimutuel buys 1:1; LMSR converts $ → shares at the current price.
+    const shares = sel.market.yes_pool != null
+      ? +amt.toFixed(2)
+      : +(amt / Math.max(sel.market.yes_price, 0.02)).toFixed(2);
     setError(null);
     setPlacedName(short(sel.agent.name));
     setPending(true);
@@ -102,6 +105,7 @@ export function CupFutures() {
               onPlace={place}
               pickHint="— pick an agent above"
               placeLabel="Back to win the cup"
+              projected={sel?.market.yes_pool != null}
             />
           </>
         )}
