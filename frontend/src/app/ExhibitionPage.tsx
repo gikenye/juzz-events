@@ -1,14 +1,13 @@
 // Bare /game with no live cup match: show the rolling exhibition game if one is
-// playing, otherwise a useful tournament intermission (next-cup countdown + a
-// route to the bracket and cup futures) — never a dead "waiting" screen.
+// playing, otherwise a minimal countdown to the next game — never a dead
+// "waiting" screen.
 import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useGameStore } from '../store/gameStore';
 import { useMarketStore } from '../store/marketStore';
 import { usePositionsStore } from '../store/positionsStore';
 import { useTournamentStore } from '../store/tournamentStore';
-import { fallbackAgent, getAgent } from '../lib/agents';
+import { fallbackAgent } from '../lib/agents';
 import { useLiveClocks } from '../lib/useLiveClocks';
 import { useServerTaunt } from '../hooks/useServerTaunt';
 import { ChessBoard } from '../components/chess/ChessBoard';
@@ -16,7 +15,6 @@ import { AgentCard } from '../components/chess/AgentCard';
 import { MarketPanel } from '../components/market/MarketPanel';
 import { Countdown } from '../components/tournament/Countdown';
 import { LastKnightBg } from '../components/layout/LastKnightBg';
-import { CupFutures } from '../components/market/CupFutures';
 
 export function ExhibitionPage() {
   const gameId = useGameStore(s => s.gameId);
@@ -68,42 +66,22 @@ export function ExhibitionPage() {
   );
 }
 
-/** Between cups (or before the first game): a live, useful holding page. */
+/** No game in progress: a minimal countdown to the next game — no cup framing,
+ *  no pre-bet, no bracket link. */
 function Intermission() {
   const league = useTournamentStore(s => s.league);
   const offset = useTournamentStore(s => s.serverOffsetMs);
-  const champ = league?.last_champion ? (getAgent(league.last_champion) ?? fallbackAgent(league.last_champion)) : null;
-  const next = league?.upcoming;
-  const startMs = (next?.starts_at_ms ?? league?.next_tournament_at_ms ?? 0) + offset;
+  const startMs = (league?.upcoming?.starts_at_ms ?? league?.next_tournament_at_ms ?? 0) + offset;
 
   return (
     <div className="max-w-md mx-auto text-center py-16">
-      <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-gold mb-3">Tournament intermission</div>
-      {champ && (
-        <p className="text-muted text-sm mb-6">
-          Last cup won by <span className="text-ivory font-semibold">{champ.name}</span> 🏆
-        </p>
-      )}
-      <h1 className="font-display text-ivory text-2xl font-bold mb-2">
-        {next?.name ?? 'Next cup starting soon'}
-      </h1>
+      <h1 className="font-display text-ivory text-2xl font-bold mb-2">Next game starting soon</h1>
       {startMs > 0 && (
         <div className="mt-4 inline-block rounded-xl border border-gold/40 bg-gold/5 px-6 py-4">
-          <div className="text-muted text-xs uppercase tracking-widest mb-1">First game in</div>
+          <div className="text-muted text-xs uppercase tracking-widest mb-1">Starts in</div>
           <Countdown target={startMs} className="font-display text-gold text-3xl font-bold tabular-nums" />
         </div>
       )}
-      {/* Pre-bet the next cup right here during the break. */}
-      <div className="mt-8 text-left">
-        <CupFutures />
-      </div>
-      <div className="mt-6">
-        <Link to="/games"
-          className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors"
-          style={{ background: 'rgba(201,162,39,0.12)', border: '1px solid rgba(201,162,39,0.4)', color: '#C9A227' }}>
-          See the full bracket →
-        </Link>
-      </div>
     </div>
   );
 }

@@ -4,7 +4,7 @@
 // Shares the leakey backdrop + card language with /games.
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useParams, Navigate, Link } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import { useTournamentStore } from '../store/tournamentStore';
 import { useGameStore } from '../store/gameStore';
 import { useMarketStore } from '../store/marketStore';
@@ -91,22 +91,16 @@ export function GamePage() {
     return <CompletedArena match={match} agentA={agentA} agentB={agentB} />;
   }
 
-  // ── Upcoming match with known participants: show the matchup only. This match's
-  // market opens when it goes live — do NOT surface the cup-winner futures here
-  // (it reads as if it were this match's market). Futures live on /games.
+  // ── Upcoming match with known participants — leakey flow: countdown to the start
+  // + the matchup board. (No pre-match odds panel: there is no market until the
+  // match goes live, so any number here would be fabricated.)
   return (
     <ArenaShell match={match}>
+      {match.isCurrent && vm.startsAtMs > 0 && <CountdownBanner target={vm.startsAtMs + offset} />}
       <div className="flex flex-col gap-3 max-w-[460px] mx-auto">
         <AgentCard agent={agentB} isActive={false} />
         <ChessBoard fen={START_FEN} />
         <AgentCard agent={agentA} isActive={false} />
-      </div>
-      <div className="max-w-[460px] mx-auto mt-4">
-        <Link to="/game"
-          className="flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors"
-          style={{ background: 'rgba(255,60,0,0.10)', border: '1px solid rgba(255,60,0,0.35)', color: '#FFBE00' }}>
-          Betting opens when this match goes live · Watch the live match →
-        </Link>
       </div>
     </ArenaShell>
   );
