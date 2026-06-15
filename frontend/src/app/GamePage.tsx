@@ -4,7 +4,7 @@
 // Shares the leakey backdrop + card language with /games.
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, Link } from 'react-router-dom';
 import { useTournamentStore } from '../store/tournamentStore';
 import { useGameStore } from '../store/gameStore';
 import { useMarketStore } from '../store/marketStore';
@@ -21,7 +21,6 @@ import { ChessBoard } from '../components/chess/ChessBoard';
 import { AgentCard } from '../components/chess/AgentCard';
 import { MarketPanel } from '../components/market/MarketPanel';
 import { OddsDisplay, type SlotView } from '../components/market/OddsDisplay';
-import { SettlementBanner } from '../components/market/SettlementBanner';
 import { Countdown } from '../components/tournament/Countdown';
 import { moveLogEventsUrl, moveLogGameId } from '../lib/config';
 import { LastKnightBg } from '../components/layout/LastKnightBg';
@@ -109,6 +108,12 @@ export function GamePage() {
       <div className="max-w-[460px] mx-auto mt-4">
         <p className="text-center text-muted text-xs uppercase tracking-widest mb-2">Pre-match win chance</p>
         <OddsDisplay outcomes={preview} readOnly />
+        {/* Upcoming matches aren't bettable yet — point users to the open market. */}
+        <Link to="/game"
+          className="mt-4 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors"
+          style={{ background: 'rgba(255,60,0,0.10)', border: '1px solid rgba(255,60,0,0.35)', color: '#FFBE00' }}>
+          Betting opens when this match goes live · Watch the live match →
+        </Link>
       </div>
     </ArenaShell>
   );
@@ -142,7 +147,6 @@ function LiveArena({ match, agentA, agentB, countdownTarget }: {
     <motion.div className="min-h-screen relative" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <LastKnightBg />
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-3 pt-20">
-        <SettlementBanner />
         {winner && <WinnerBanner name={winner.name} detail={result ? RESULT_TEXT[result] : undefined} />}
         {countdownTarget > 0 && <CountdownBanner target={countdownTarget} />}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
