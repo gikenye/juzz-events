@@ -13,7 +13,7 @@ export interface SlotView {
 }
 
 interface OddsDisplayProps {
-  outcomes: SlotView[];   // two agent outcomes (a, b)
+  outcomes: SlotView[];   // 2 or 3 outcomes (a, draw?, b)
   onSelect?: (key: SlotKey) => void;
   selected?: SlotKey | null;
   readOnly?: boolean;
@@ -23,8 +23,8 @@ export function OddsDisplay({ outcomes, onSelect, selected = null, readOnly = fa
   const handleSelect = (key: SlotKey) => {
     if (!readOnly) onSelect?.(key);
   };
-  const a = outcomes[0];
-  const b = outcomes[1];
+  const first = outcomes[0];
+  const last  = outcomes[outcomes.length - 1];
 
   return (
     <>
@@ -32,20 +32,20 @@ export function OddsDisplay({ outcomes, onSelect, selected = null, readOnly = fa
       <div className="flex flex-col gap-2 lg:hidden">
         <div className="flex items-center gap-2">
           <span style={{ fontFamily: "'Inter', sans-serif", color: '#FF7A00', fontSize: 11, fontWeight: 600, minWidth: 32 }}>
-            {((a?.prob ?? 0) * 100).toFixed(0)}%
+            {((first?.prob ?? 0) * 100).toFixed(0)}%
           </span>
           <div className="flex flex-1 rounded-full overflow-hidden h-2" style={{ background: 'rgba(255,60,0,0.12)' }}>
             {outcomes.map(o => (
               <motion.div
                 key={o.key}
-                style={{ background: o.key === a?.key ? 'linear-gradient(90deg,#FF3300,#FF7A00)' : 'rgba(255,80,0,0.35)' }}
+                style={{ background: o.key === first?.key ? 'linear-gradient(90deg,#FF3300,#FF7A00)' : 'rgba(255,80,0,0.35)' }}
                 animate={{ flexGrow: Math.max(o.prob, 0.001) }}
                 transition={{ duration: 0.8, ease: 'easeOut' }}
               />
             ))}
           </div>
           <span style={{ fontFamily: "'Inter', sans-serif", color: '#C07840', fontSize: 11, fontWeight: 600, minWidth: 32, textAlign: 'right' }}>
-            {((b?.prob ?? 0) * 100).toFixed(0)}%
+            {((last?.prob ?? 0) * 100).toFixed(0)}%
           </span>
         </div>
 

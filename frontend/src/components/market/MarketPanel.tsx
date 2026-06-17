@@ -9,17 +9,17 @@ const shortLabel = (label: string) => label.replace(/^Agent\s+/, '');
 export function MarketPanel() {
   const { slots, selected, selectOutcome } = useMarketStore();
 
-  // Two-outcome design: the draw market stays open server-side but is not a
-  // visible pick — display probabilities renormalize over the two agents.
-  const pair = slots.filter(s => s.key !== 'draw');
-  const pairSum = pair.reduce((t, s) => t + s.prob, 0) || 1;
-  const outcomes: SlotView[] = pair.map(s => {
+  // Order as: white | draw | black; prob already normalized by the store
+  const ordered = (['a', 'draw', 'b'] as const)
+    .map(key => slots.find(s => s.key === key))
+    .filter((s): s is NonNullable<typeof s> => s != null);
+  const outcomes: SlotView[] = ordered.map(s => {
     const agent = s.agentId ? getAgent(s.agentId) : null;
     return {
       key: s.key,
       label: shortLabel(s.label),
       color: agent?.color ?? DRAW_COLOR,
-      prob: s.prob / pairSum,
+      prob: s.prob,
       agent,
     };
   });
