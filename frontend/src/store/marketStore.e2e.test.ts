@@ -20,18 +20,16 @@ describe('live markets e2e', () => {
     useGameStore.getState().start();
     useMarketStore.getState().bind();
 
-    // 2 slots for a tournament match, 3 for an exhibition game.
-    const ready = await until(() => useMarketStore.getState().slots.length >= 2, 25_000);
+    // 3 outcomes — both agents plus a draw — for tournament and exhibition games.
+    const ready = await until(() => useMarketStore.getState().slots.length >= 3, 25_000);
     if (!ready) { useMarketStore.getState().unbind(); useGameStore.getState().stop(); socket.close(); return; }
 
     const ms = useMarketStore.getState();
-    expect(ms.slots.length).toBe(ms.mode === 'match' ? 2 : 3);
+    expect(ms.slots.length).toBe(3);
+    expect([...ms.slots.map(s => s.key)].sort()).toEqual(['a', 'b', 'draw']);
     const total = ms.slots.reduce((s, x) => s + x.prob, 0);
     expect(total).toBeCloseTo(1, 5);
     expect(ms.isMarketOpen).toBe(true);
-    if (ms.mode === 'exhibition') {
-      expect(ms.slots.map(s => s.key)).toEqual(['a', 'b', 'draw']);
-    }
 
     // A spectator (no trading session) buy must be rejected by the backend.
     const market = ms.slots[0];

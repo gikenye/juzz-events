@@ -67,13 +67,17 @@ function slotsOf(markets: MarketSummary[]): { mode: 'match' | 'exhibition'; slot
         agentId: p.agent_id,
         label: p.name,
         yesPrice: m.yes_price,
-        prob: 0.5,
+        prob: 0,
         resolved: m.resolved,
         parimutuel: m.yes_pool != null,
       }];
     });
-    if (slots.length === 2) {
-      return { mode: 'match', slots: normalize(slots.sort(s => (s.key === 'a' ? -1 : 1))) };
+    // Third outcome: a drawn game pays this market (agents resolve NO).
+    const drawM = markets.find(m => m.question.toLowerCase().includes('draw'));
+    if (drawM) slots.push({ key: 'draw', marketId: drawM.market_id, agentId: null,
+      label: 'Draw', yesPrice: drawM.yes_price, prob: 0, resolved: drawM.resolved, parimutuel: drawM.yes_pool != null });
+    if (slots.length >= 2) {
+      return { mode: 'match', slots: normalize(slots) };
     }
   }
 
