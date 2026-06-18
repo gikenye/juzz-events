@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { useGameStore } from '../../store/gameStore';
 import { kingInCheckSquare } from '../../lib/chessCheck';
+import { MOVE_ANIM_MS } from '../../lib/liveSync';
 
 const PIECE_TYPES = ['wP', 'wN', 'wB', 'wR', 'wQ', 'wK', 'bP', 'bN', 'bB', 'bR', 'bQ', 'bK'];
 
@@ -28,9 +29,14 @@ interface ChessBoardProps {
 export function ChessBoard({ fen: fenProp, lastMove: lastMoveProp }: ChessBoardProps) {
   const storeFen = useGameStore(s => s.fen);
   const storeLastMove = useGameStore(s => s.lastMove);
+  const storeAnimate = useGameStore(s => s.animate);
 
   const fen = fenProp ?? storeFen;
   const lastMove = fenProp !== undefined ? lastMoveProp ?? null : storeLastMove;
+  // Live board snaps (no animation) when moves arrive faster than the animation
+  // can finish — the store gates this so a scramble can't pile up animations and
+  // freeze the board. Static fen-prop views (pre-match/completed) always animate.
+  const showAnimations = fenProp !== undefined ? true : storeAnimate;
 
   const checkSquare = useMemo(() => kingInCheckSquare(fen), [fen]);
 
@@ -55,6 +61,8 @@ export function ChessBoard({ fen: fenProp, lastMove: lastMoveProp }: ChessBoardP
         options={{
           position: fen,
           allowDragging: false,
+          showAnimations,
+          animationDurationInMs: MOVE_ANIM_MS,
           darkSquareStyle: { backgroundColor: '#B58863' },
           lightSquareStyle: { backgroundColor: '#F0D9B5' },
           pieces: customPieces,

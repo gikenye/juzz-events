@@ -9,7 +9,8 @@ import { create } from 'zustand';
 import { useAuthStore } from './authStore';
 import { socket } from '../lib/ws';
 import { GAME_TYPE } from '../lib/config';
-import { turnFromFen, uciSquares, capturedFromFen } from '../lib/chessFen';
+import { uciSquares } from '../lib/chessFen';
+import { applyPosition, nextServerSync } from '../lib/liveSync';
 import type { GameSummary, GameEvent, Player, GameResult } from '../lib/types';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -38,6 +39,7 @@ interface GameState {
   joinedMidGame: boolean;
   capturedPieces: { byBlack: string[]; byWhite: string[] };
   waiting: boolean;             // connected but no live chess game yet
+  animate: boolean;             // animate the next board update (false during fast bursts)
 
   start: () => void;
   watch: (gameId: string) => void;
@@ -47,6 +49,8 @@ interface GameState {
 let wired = false;
 let pinned = false; // explicit-game mode (match routes): no auto-roll
 let rollTimer: ReturnType<typeof setTimeout> | null = null;
+let lastApplyAt = 0; // performance.now() of the last board update, for animate gating
+let offsetSeeded = false; // has serverOffsetMs been seeded from a real server ts yet?
 const unsub: Array<() => void> = [];
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -67,6 +71,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   joinedMidGame: false,
   capturedPieces: { byBlack: [], byWhite: [] },
   waiting: true,
+  animate: true,
 
   start() {
     pinned = false;
@@ -83,7 +88,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         else set({ waiting: true });
       }));
       unsub.push(socket.on('subscribed', ({ snapshot }) => {
-        if (snapshot.now_ms) set({ serverOffsetMs: Date.now() - snapshot.now_ms });
+        if (snapshot.now_ms) { set({ serverOffsetMs: Date.now() - snapshot.now_ms }); offsetSeeded = true; }
         set({
           startsAtMs: snapshot.starts_at_ms ?? 0,
           joinedMidGame: snapshot.move_number > 0,
@@ -132,6 +137,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     while (unsub.length) unsub.pop()!();
     wired = false;
     pinned = false;
+    offsetSeeded = false;
     socket.unsubscribeGame();
   },
 }));
@@ -140,11 +146,14 @@ type Setter = (partial: Partial<GameState>) => void;
 
 function syncServerTime(ev: { ts_ms?: number }, set: Setter, get: () => GameState) {
   if (!ev.ts_ms) return;
-  const sample = Date.now() - ev.ts_ms;
-  const prev = get().serverOffsetMs;
-  const offset = prev === 0 ? sample : prev + 0.2 * (sample - prev);
-  // Anchor staleness: transit time of THIS event beyond the steady offset.
-  const lag = Math.min(2000, Math.max(0, sample - offset));
+  if (!offsetSeeded) {
+    // First server timestamp seeds the skew directly (0 is a valid offset, so we
+    // can't use it as an "unseeded" sentinel — a stale replay would re-seed wrong).
+    offsetSeeded = true;
+    set({ serverOffsetMs: Date.now() - ev.ts_ms, eventLagMs: 0 });
+    return;
+  }
+  const { offset, lag } = nextServerSync(get().serverOffsetMs, ev.ts_ms, Date.now());
   set({ serverOffsetMs: offset, eventLagMs: lag });
 }
 
@@ -210,18 +219,16 @@ function applyState(set: Setter, p: {
   players?: Players; lastMove: { from: string; to: string } | null;
   finished?: boolean; result?: GameResult | null;
 }) {
+  const now = performance.now();
+  const patch = applyPosition(
+    { gameId: p.gameId, fen: p.fen, clocks: p.clocks, moveNumber: p.moveNumber, lastMove: p.lastMove, finished: p.finished },
+    now,
+    lastApplyAt,
+  );
+  lastApplyAt = now;
   set({
-    ...(p.gameId ? { gameId: p.gameId } : {}),
-    fen: p.fen,
-    clocksMs: p.clocks,
-    clockAnchor: performance.now(),
-    moveNumber: p.moveNumber,
-    turn: turnFromFen(p.fen),
-    lastMove: p.lastMove,
-    capturedPieces: capturedFromFen(p.fen),
-    waiting: false,
+    ...patch,
     ...(p.players ? { players: p.players } : {}),
-    ...(p.finished !== undefined ? { isFinished: p.finished } : {}),
     ...(p.result !== undefined ? { result: p.result } : {}),
   });
 }

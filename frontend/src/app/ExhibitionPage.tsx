@@ -10,8 +10,9 @@ import { useTournamentStore } from '../store/tournamentStore';
 import { fallbackAgent } from '../lib/agents';
 import { useLiveClocks } from '../lib/useLiveClocks';
 import { useServerTaunt } from '../hooks/useServerTaunt';
-import { useMoveSounds } from '../hooks/useMoveSounds';
-import { SoundToggle } from '../components/ui/SoundToggle';
+// Board audio disabled pending external sound assets — see useMoveSounds / SoundToggle.
+// import { useMoveSounds } from '../hooks/useMoveSounds';
+// import { SoundToggle } from '../components/ui/SoundToggle';
 import { ChessBoard } from '../components/chess/ChessBoard';
 import { AgentCard } from '../components/chess/AgentCard';
 import { MarketPanel } from '../components/market/MarketPanel';
@@ -41,7 +42,7 @@ export function ExhibitionPage() {
   const black = players.black ? fallbackAgent(players.black.agent_id, players.black.name) : null;
   const turn = fen.split(' ')[1];
   const taunt = useServerTaunt(gameId);
-  useMoveSounds();
+  // useMoveSounds(); // audio disabled pending external sound assets
 
   // A finished game must NOT linger as a frozen board (clocks at 0:00, no context)
   // while we wait for the next one — that gap can be minutes between cups. Drop
@@ -56,7 +57,7 @@ export function ExhibitionPage() {
   return (
     <motion.div className="min-h-screen relative" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <LastKnightBg />
-      <SoundToggle className="fixed bottom-4 right-4 z-40" />
+      {/* <SoundToggle className="fixed bottom-4 right-4 z-40" /> audio disabled */}
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-6">
         {idle ? (
           <Intermission />

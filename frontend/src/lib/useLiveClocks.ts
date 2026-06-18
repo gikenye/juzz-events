@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
+import { liveClock } from './liveSync';
 
 // Smooth, server-synced clocks. The store holds the server's clocks_ms anchored at the
 // moment each event arrived; here we count the side-to-move down from that anchor in real
@@ -21,14 +22,7 @@ export function useLiveClocks(): { white: number; black: number } {
     return () => clearInterval(id);
   }, [isFinished, countdown]);
 
-  // The anchor was already eventLagMs old when it arrived — count from there.
-  const elapsed = isFinished || countdown || now === 0
-    ? 0
-    : Math.max(0, now - anchor) + eventLagMs;
-  return {
-    white: Math.max(0, clocksMs[0] - (turn === 'w' ? elapsed : 0)),
-    black: Math.max(0, clocksMs[1] - (turn === 'b' ? elapsed : 0)),
-  };
+  return liveClock({ clocksMs, clockAnchor: anchor, turn, eventLagMs, isFinished, countdown, now });
 }
 
 // Pre-match countdown: server-time remaining until play begins (0 when live).
