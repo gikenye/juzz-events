@@ -16,6 +16,8 @@ import { buildCupVM, type MatchVM } from '../lib/tournamentView';
 import { capturedFromFen } from '../lib/chessFen';
 import { useLiveClocks } from '../lib/useLiveClocks';
 import { useServerTaunt } from '../hooks/useServerTaunt';
+import { useMoveSounds } from '../hooks/useMoveSounds';
+import { SoundToggle } from '../components/ui/SoundToggle';
 import type { GameResult } from '../lib/types';
 import { ChessBoard } from '../components/chess/ChessBoard';
 import { AgentCard } from '../components/chess/AgentCard';
@@ -126,12 +128,14 @@ function LiveArena({ match, agentA, agentB, countdownTarget }: {
 
   // Live trash talk — server-authored, broadcast to every viewer.
   const taunt = useServerTaunt(gameId);
+  useMoveSounds();
 
   // Live match goes straight to the board (no title) — the board is
   // the hero, full size on the inferno, not tucked under a header.
   return (
     <motion.div className="min-h-screen relative" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <LastKnightBg />
+      <SoundToggle className="fixed bottom-4 right-4 z-40" />
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-3 pt-20">
         {winner && <WinnerBanner name={winner.name} detail={result ? RESULT_TEXT[result] : undefined} />}
         {countdownTarget > 0 && <CountdownBanner target={countdownTarget} />}
