@@ -63,9 +63,16 @@ export function AllGamesPage() {
   }
 
   // Two-sided probability for the featured card from the live market slots.
+  // Only when the slots belong to THIS live game and are still open — a resolved
+  // (or not-yet-loaded) market must not show as live odds, or the card carries
+  // the previous game's settled prices into "next game starting soon".
+  const marketGameId = useMarketStore(s => s.gameId);
   const a = slots.find(s => s.key === 'a');
   const b = slots.find(s => s.key === 'b');
-  const liveProb = featured.phase === 'live' && a && b && a.prob + b.prob > 0
+  const liveProb = featured.phase === 'live' && a && b
+    && !a.resolved && !b.resolved
+    && marketGameId === featured.gameId
+    && a.prob + b.prob > 0
     ? { a: a.prob / (a.prob + b.prob), b: b.prob / (a.prob + b.prob) }
     : null;
   // Ticking countdown on the featured card for the current match before it goes
