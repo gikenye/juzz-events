@@ -20,7 +20,7 @@ interface AgentCardProps {
   clockMs?: number;
 }
 
-export function AgentCard({ agent, isActive, capturedPieces = [], capturedIsWhite, taunt = null, clockMs }: AgentCardProps) {
+export function AgentCard({ agent, isActive, capturedPieces = [], capturedIsWhite, taunt, clockMs }: AgentCardProps) {
   const advantage = capturedPieces.reduce((sum, p) => sum + (PIECE_VALUE[p] ?? 0), 0);
   const sorted = [...capturedPieces].sort((a, b) => (PIECE_VALUE[b] ?? 0) - (PIECE_VALUE[a] ?? 0));
   const pieceColor = capturedIsWhite ? '#F5F0E8' : '#888888';
@@ -56,8 +56,9 @@ export function AgentCard({ agent, isActive, capturedPieces = [], capturedIsWhit
         )}
       </div>
 
-      {/* Trash talk — its own line below the row so it never overlaps the pieces. */}
-      <TauntLine agent={agent} taunt={taunt} />
+      {/* Trash talk — a fixed-height slot below the row. Only present in
+          taunt-capable contexts (live/exhibition); never in static views. */}
+      {taunt !== undefined && <TauntLine agent={agent} taunt={taunt} />}
     </div>
   );
 }
@@ -93,15 +94,18 @@ function ClockDisplay({ ms, isActive }: { ms: number; isActive: boolean }) {
 }
 
 // Trash talk on its own line below the agent row — a frosted pill, legible,
-// never overlapping the captured pieces. Reserves no height when silent.
-// A brief typing-dots animation plays before the line is revealed.
+// never overlapping the captured pieces. The slot reserves a constant height
+// so revealing or clearing a line never shifts the board or the cards; the
+// pill only fades in/out in place. A brief typing-dots animation plays first.
 function TauntLine({ agent, taunt }: { agent: Agent; taunt: string | null }) {
   // Keyed inner component so `typing` initializes fresh per taunt — no
   // reset-in-effect, and AnimatePresence still plays enter + exit.
   return (
-    <AnimatePresence initial={false}>
-      {taunt && <Line key={taunt} colorLight={agent.colorLight} taunt={taunt} />}
-    </AnimatePresence>
+    <div className="relative h-7">
+      <AnimatePresence initial={false}>
+        {taunt && <Line key={taunt} colorLight={agent.colorLight} taunt={taunt} />}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -114,14 +118,16 @@ function Line({ colorLight, taunt }: { colorLight: string; taunt: string }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -4, height: 0 }}
-      animate={{ opacity: 1, y: 0, height: 'auto' }}
-      exit={{ opacity: 0, y: -4, height: 0 }}
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
-      className="overflow-hidden"
+      // Absolutely fill the fixed-height slot so the animation stays out of
+      // layout flow — the board never reacts to a taunt appearing.
+      className="absolute inset-x-0 top-0"
     >
       <span
-        className="inline-block max-w-full px-2.5 py-1 rounded-lg text-[12px] font-medium text-ivory leading-snug"
+        className="inline-block max-w-full truncate px-2.5 py-1 rounded-lg text-[12px] font-medium text-ivory leading-snug"
         style={{
           background: 'rgba(255,255,255,0.07)',
           border: '1px solid rgba(255,255,255,0.12)',
