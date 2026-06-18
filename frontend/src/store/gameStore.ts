@@ -15,6 +15,11 @@ import type { GameSummary, GameEvent, Player, GameResult } from '../lib/types';
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const ROLL_DELAY_MS = 4500; // pause on the result before rolling to the next game
 
+// Board piece-move animation length. Moves landing faster than this snap with
+// no animation (see `animate`), so a time scramble or a reconnect catch-up
+// burst can't pile up overlapping animations and freeze the board.
+export const MOVE_ANIM_MS = 200;
+
 interface Players { white: Player | null; black: Player | null; }
 
 interface GameState {
@@ -38,6 +43,7 @@ interface GameState {
   joinedMidGame: boolean;
   capturedPieces: { byBlack: string[]; byWhite: string[] };
   waiting: boolean;             // connected but no live chess game yet
+  animate: boolean;             // animate the next board update (false during fast bursts)
 
   start: () => void;
   watch: (gameId: string) => void;
@@ -47,6 +53,7 @@ interface GameState {
 let wired = false;
 let pinned = false; // explicit-game mode (match routes): no auto-roll
 let rollTimer: ReturnType<typeof setTimeout> | null = null;
+let lastApplyAt = 0; // performance.now() of the last board update, for animate gating
 const unsub: Array<() => void> = [];
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -67,6 +74,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   joinedMidGame: false,
   capturedPieces: { byBlack: [], byWhite: [] },
   waiting: true,
+  animate: true,
 
   start() {
     pinned = false;
@@ -210,11 +218,15 @@ function applyState(set: Setter, p: {
   players?: Players; lastMove: { from: string; to: string } | null;
   finished?: boolean; result?: GameResult | null;
 }) {
+  const now = performance.now();
+  const animate = now - lastApplyAt > MOVE_ANIM_MS;
+  lastApplyAt = now;
   set({
     ...(p.gameId ? { gameId: p.gameId } : {}),
     fen: p.fen,
+    animate,
     clocksMs: p.clocks,
-    clockAnchor: performance.now(),
+    clockAnchor: now,
     moveNumber: p.moveNumber,
     turn: turnFromFen(p.fen),
     lastMove: p.lastMove,
