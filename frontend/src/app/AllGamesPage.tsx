@@ -73,7 +73,10 @@ export function AllGamesPage() {
   // /game stay in sync — a live clock here, never a static "Queued".
   const countdownTarget = featured.isCurrent && vm.startsAtMs > 0 ? vm.startsAtMs + offset : 0;
 
-  const upcoming = vm.matches.filter(m => m.phase === 'upcoming' && m.id !== featured.id);
+  // Hide all-TBD "Winner of … vs Winner of …" cards: while a feeder match is
+  // still being played its dependent match has no known players and would sit in
+  // Upcoming indefinitely. Only show upcoming matches with at least one decided side.
+  const upcoming = vm.matches.filter(m => m.phase === 'upcoming' && m.id !== featured.id && (m.aId || m.bId));
   const completed = vm.matches.filter(m => m.phase === 'completed' && m.id !== featured.id);
 
   return (
