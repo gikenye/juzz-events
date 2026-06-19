@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
 
@@ -15,12 +15,14 @@ export function Navbar() {
   const walletUser = isMiniPay || !!walletAddress;
   const funded = !!user || walletUser;
   const navigate = useNavigate();
+  // Home shows the dev banner above the navbar; drop the bar to clear it there.
+  const onHome = useLocation().pathname === '/';
   const [open, setOpen] = useState(false);
   const [userMenu, setUserMenu] = useState(false);
 
   return (
     <>
-      <header className="fixed top-4 left-0 right-0 z-40 flex justify-center px-4">
+      <header className={`fixed ${onHome ? 'top-12' : 'top-4'} left-0 right-0 z-40 flex justify-center px-4`}>
         <nav
           className="w-full flex items-center justify-between h-14 px-5 rounded-2xl"
           style={{
