@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { AGENTS } from '../lib/agents';
 import { AgentAvatar } from '../components/chess/AgentAvatar';
+import { DevBanner } from '../components/layout/DevBanner';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -24,6 +25,8 @@ export function HomePage() {
 
   return (
     <div className="min-h-screen bg-bg-base overflow-x-hidden">
+      {/* Active-development notice — home only, pinned above the navbar. */}
+      <DevBanner />
       {/* Hero — Grand Gambit style */}
       <style>{`
         @keyframes hp-torch {
@@ -38,7 +41,7 @@ export function HomePage() {
         }
       `}</style>
       <section className="relative flex flex-col items-center text-center px-4 overflow-hidden"
-        style={{ background: '#0C0805', minHeight: '100vh', justifyContent: 'center', paddingTop: 96, paddingBottom: 80 }}>
+        style={{ background: '#0C0805', minHeight: '100vh', justifyContent: 'center', paddingTop: 128, paddingBottom: 80 }}>
 
         {/* Background radials */}
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 80% 50% at 50% 100%, rgba(155,28,28,0.38) 0%, transparent 65%)', pointerEvents: 'none' }} />
