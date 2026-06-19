@@ -150,8 +150,11 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     }));
 
     // Re-list markets whenever the game advances (prices move on moves) or rolls over.
+    // On a game change, clear the old slots first: otherwise the previous game's
+    // (often resolved) odds linger on the /games card during "next game starting
+    // soon" until the new market_list arrives — stale, nonsensical prices.
     const onGame = (gameId: string | null) => {
-      set({ gameId });
+      set({ gameId, slots: [], isMarketOpen: false, selected: null });
       if (gameId) socket.listMarkets(gameId);
     };
     onGame(useGameStore.getState().gameId);
